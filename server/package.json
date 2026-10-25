@@ -1,10 +1,10 @@
 {
   "name": "flowebuy-backend",
   "version": "1.0.0",
-  "description": "API REST para o Marketplace FLOWEBUY",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node -c server.js && node -c Database.js"
   },
   "dependencies": {
     "express": "^4.18.2",
