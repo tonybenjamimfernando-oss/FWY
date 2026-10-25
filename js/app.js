@@ -766,6 +766,7 @@ async function adicionarProduto() {
 
 // 9. MÉTRICAS REAIS DO CENTRO DE NEGÓCIO
 // Métricas reais consultadas por loja do utilizador autenticado.
+// Métricas reais consultadas por loja do utilizador autenticado.
 async function carregarMetricas() {
     const kpis = $$('.kpi-value');
     const receitaKpi = kpis[2];
@@ -775,6 +776,7 @@ async function carregarMetricas() {
     const chart = $('.empty-chart');
     const chartLabel = $('.finance-header .muted');
     const inventario = $('.inventory-list');
+
     if (!currentUser || !window.supabaseClient) {
         if (aviso) aviso.textContent = 'Inicie sessão para consultar as métricas reais das suas lojas.';
         if (encomendasKpi) encomendasKpi.textContent = '—';
@@ -783,11 +785,14 @@ async function carregarMetricas() {
         if (chart) chart.textContent = 'Inicie sessão para consultar dados financeiros.';
         return;
     }
+
     if (aviso) aviso.textContent = 'A consultar dados reais das suas lojas e encomendas…';
     try {
-        const { data: lojas, error: lojasError } = await window.supabaseClient.from('lojas').select('id,nome').eq('owner_id', currentUser.id);
+        const { data: lojas, error: lojasError } = await window.supabaseClient
+            .from('lojas').select('id,nome').eq('owner_id', currentUser.id);
         if (lojasError) throw lojasError;
         const ids = (lojas || []).map(loja => Number(loja.id)).filter(id => Number.isSafeInteger(id) && id > 0);
+
         if (!ids.length) {
             if (encomendasKpi) encomendasKpi.textContent = '0';
             if (stockKpi) stockKpi.textContent = '0';
@@ -798,41 +803,66 @@ async function carregarMetricas() {
             if (inventario) inventario.replaceChildren();
             return;
         }
-        const [{ data: encomendas, error: encomendasError }, { data: produtos, error: produtosError }] = await Promise.all([
+
+        const [ordersResult, productsResult] = await Promise.all([
             window.supabaseClient.from('encomendas').select('id,total,status,loja_id,created_at').in('loja_id', ids),
             window.supabaseClient.from('produtos').select('id,nome,stock,loja_id').in('loja_id', ids).order('stock', { ascending: true })
         ]);
-        if (encomendasError) throw encomendasError;
-        if (produtosError) throw produtosError;
-        const orders = encomendas || [];
-        const paidOrders = orders.filter(order => ['pago','paid'].includes(String(order.status || '').toLowerCase()));
+        if (ordersResult.error) throw ordersResult.error;
+        if (productsResult.error) throw productsResult.error;
+
+        const orders = ordersResult.data || [];
+        const products = productsResult.data || [];
+        const paidOrders = orders.filter(order => ['pago', 'paid'].includes(String(order.status || '').toLowerCase()));
         const revenue = paidOrders.reduce((sum, order) => sum + Math.max(0, Number(order.total) || 0), 0);
-        const lowStock = (produtos || []).filter(product => Number(product.stock) < 5);
+        const lowStock = products.filter(product => Number(product.stock) < 5);
+
         if (encomendasKpi) encomendasKpi.textContent = String(orders.length);
         if (stockKpi) stockKpi.textContent = String(lowStock.length);
         if (receitaKpi) receitaKpi.textContent = 'USD ' + revenue.toFixed(2);
-        if (aviso) aviso.textContent = lowStock.length
-            ? 'Atenção: ' + lowStock.length + ' produto(s) com stock inferior a 5 unidades. Reveja o inventário.'
-            : 'Dados reais das suas lojas. A receita considera apenas encomendas com estado Pago.';
+
+        if (aviso) {
+            if (lowStock.length) {
+                aviso.textContent = 'Atenção: ' + lowStock.length + ' produto(s) com stock inferior a 5 unidades. Reveja o inventário.';
+            } else {
+                aviso.textContent = 'Dados reais das suas lojas. A receita considera apenas encomendas com estado Pago.';
+            }
+        }
         if (chartLabel) chartLabel.textContent = paidOrders.length + ' encomenda(s) paga(s)';
         if (chart) {
-            chart.textContent = paidOrders.length
-                ? 'Receita confirmada: USD ' + revenue.toFixed(2) + '. Encomendas pagas: ' + paidOrders.length + '. Encomendas pendentes/canceladas não entram na receita.'
-                : 'Ainda não há encomendas pagas. As encomendas pendentes não são contabilizadas como receita.';
+            if (paidOrders.length) {
+                chart.textContent = 'Receita registada em USD: ' + revenue.toFixed(2) + '. Encomendas pagas: ' + paidOrders.length + '. Encomendas pendentes ou canceladas não entram na receita.';
+            } else {
+                chart.textContent = 'Ainda não há encomendas pagas. As encomendas pendentes não são contabilizadas como receita.';
+            }
         }
+
         if (inventario) {
             inventario.replaceChildren();
-            if (!produtos || !produtos.length) {
-                const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'Ainda não existem produtos nas suas lojas.'; inventario.appendChild(p);
+            if (!products.length) {
+                const p = document.createElement('p');
+                p.className = 'muted';
+                p.textContent = 'Ainda não existem produtos nas suas lojas.';
+                inventario.appendChild(p);
             } else {
-                (produtos || []).slice(0, 30).forEach(product => {
-                    const row = document.createElement('div'); row.className = 'inventory-item';
-                    const info = document.createElement('div'); info.className = 'inv-info';
-                    const name = document.createElement('span'); name.className = 'inv-name'; name.textContent = String(product.nome || 'Produto');
-                    const sku = document.createElement('span'); sku.className = 'inv-sku'; sku.textContent = Number(product.stock) < 5 ? 'Stock baixo' : 'Inventário disponível';
-                    const stock = document.createElement('span'); stock.className = 'inv-stock'; stock.textContent = String(Number(product.stock) || 0) + ' un.';
+                products.slice(0, 30).forEach(product => {
+                    const row = document.createElement('div');
+                    row.className = 'inventory-item';
+                    const info = document.createElement('div');
+                    info.className = 'inv-info';
+                    const name = document.createElement('span');
+                    name.className = 'inv-name';
+                    name.textContent = String(product.nome || 'Produto');
+                    const sku = document.createElement('span');
+                    sku.className = 'inv-sku';
+                    sku.textContent = Number(product.stock) < 5 ? 'Stock baixo' : 'Inventário disponível';
+                    const stock = document.createElement('span');
+                    stock.className = 'inv-stock';
+                    stock.textContent = String(Number(product.stock) || 0) + ' un.';
                     if (Number(product.stock) < 5) stock.style.color = '#b91c1c';
-                    info.append(name, sku); row.append(info, stock); inventario.appendChild(row);
+                    info.append(name, sku);
+                    row.append(info, stock);
+                    inventario.appendChild(row);
                 });
             }
         }
