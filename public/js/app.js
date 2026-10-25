@@ -17,10 +17,28 @@ const $$ = (sel) => document.querySelectorAll(sel);
 document.addEventListener("DOMContentLoaded", () => {
     carregarLojas();
     setupGlobalListeners();
+    setupSearchListener();
     // Atualiza a métrica do carrinho na sala de negócio
     const cartMetric = $('#cart-metric');
     if(cartMetric) cartMetric.innerText = carrinhoCount;
 });
+
+// Pesquisa de lojas visíveis no mercado (sem depender da API)
+function setupSearchListener() {
+    const pesquisa = $('#pesquisa');
+    if (!pesquisa) return;
+
+    const filtrarLojas = () => {
+        const termo = pesquisa.value.trim().toLocaleLowerCase();
+        $('#grid-lojas .loja-card').forEach(card => {
+            card.hidden = !card.innerText.toLocaleLowerCase().includes(termo);
+        });
+    };
+
+    pesquisa.addEventListener('input', filtrarLojas);
+    // Aplicar também a pesquisa atual quando as lojas forem carregadas.
+    filtrarLojas();
+}
 
 // 3. CARREGAR LOJAS (FASE 1)
 async function carregarLojas() {
