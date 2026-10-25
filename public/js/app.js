@@ -2,7 +2,7 @@
    FLOWEBUY - APPLICATION LOGIC (PRODUCTION)
    ========================================= */
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = `${window.location.origin}/api`;
 let carrinhoCount = 0;
 
 // --- FUNÇÕES UTILITÁRIAS ---
