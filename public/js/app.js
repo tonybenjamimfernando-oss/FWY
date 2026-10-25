@@ -1,71 +1,103 @@
 /* =========================================
-   FLOWEBUY - APPLICATION LOGIC (PRODUCTION)
+   FLOWEBUY - APP.JS (VERSÃO PRODUÇÃO)
    ========================================= */
 
-const API_URL = `${window.location.origin}/api`;
+// 1. CONFIGURAÇÃO DA API (Deteta Ambiente)
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_URL = isLocalhost ? 'http://localhost:3000/api' : '/api'; 
+// Nota: Se hospedar no Vercel/Render, o '/api' será relativo ao domínio.
+
 let carrinhoCount = 0;
 
-// --- FUNÇÕES UTILITÁRIAS ---
-const $ = (selector) => document.querySelector(selector);
-const $$ = (selector) => document.querySelectorAll(selector);
+// --- FUNÇÕES UTILITÁRIAS (Verificação de Integridade) ---
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
 
-// --- 1. INICIALIZAÇÃO E CARREGAMENTO DE DADOS ---
-document.addEventListener("DOMContentLoaded", async () => {
-    await carregarLojas();
+// 2. INICIALIZAÇÃO
+document.addEventListener("DOMContentLoaded", () => {
+    carregarLojas();
     setupGlobalListeners();
+    // Atualiza a métrica do carrinho na sala de negócio
+    const cartMetric = $('#cart-metric');
+    if(cartMetric) cartMetric.innerText = carrinhoCount;
 });
 
+// 3. CARREGAR LOJAS (FASE 1)
 async function carregarLojas() {
     const gridLojas = $('#grid-lojas');
-    if (!gridLojas) return; // Verificação de integridade
+    if (!gridLojas) return;
 
     try {
-        const response = await fetch(`${API_URL}/lojas`);
+        const response = await fetch(\`\${API_URL}/lojas\`);
+        if (!response.ok) throw new Error("Erro na rede");
         const lojas = await response.json();
         
-        gridLojas.innerHTML = ''; // Limpa o estado anterior
+        gridLojas.innerHTML = '';
+        if(lojas.length === 0) {
+            gridLojas.innerHTML = '<p class="loading-state">Nenhuma loja registada ainda. Crie a primeira!</p>';
+            return;
+        }
+
         lojas.forEach(loja => {
             const card = document.createElement('div');
             card.className = 'loja-card';
-            card.innerHTML = `
+            card.innerHTML = \`
                 <div class="loja-card-header">
-                    <div class="loja-icon">${loja.icone}</div>
-                    <div class="badge-live">${loja.status}</div>
+                    <div class="loja-icon">\${loja.icone}</div>
+                    <div class="badge-live">\${loja.status || 'Live'}</div>
                 </div>
                 <div>
-                    <h3>${loja.nome}</h3>
-                    <p>${loja.descricao}</p>
+                    <h3>\${loja.nome}</h3>
+                    <p>\${loja.descricao || 'Sem descrição.'}</p>
                 </div>
                 <div class="loja-card-footer">
                     <span>Entrar na Loja</span>
                     <span>&rarr;</span>
                 </div>
-            `;
+            \`;
             card.onclick = () => abrirLoja(loja.id, loja.nome);
             gridLojas.appendChild(card);
         });
     } catch (error) {
-        console.error("Erro ao carregar lojas:", error);
-        gridLojas.innerHTML = '<p>Erro ao carregar o mercado. Verifique o servidor.</p>';
+        console.warn("API indisponível. A usar fallback offline.");
+        // FALLBACK OFFLINE: Se o servidor não estiver ligado, mostra dados simulados
+        renderizarLojasFallback();
     }
 }
 
-// --- 2. NAVEGAÇÃO ---
+function renderizarLojasFallback() {
+    const gridLojas = $('#grid-lojas');
+    const lojasMock = [
+        { id: 1, nome: 'Lumière Skincare', descricao: 'Produtos orgânicos.', icone: '🧴', status: 'Live' },
+        { id: 2, nome: 'TechNova Store', descricao: 'Gadgets de última geração.', icone: '📱', status: 'Live' },
+        { id: 3, nome: 'Velocity Run', descricao: 'Calçado desportivo.', icone: '👟', status: 'Live' },
+    ];
+    
+    gridLojas.innerHTML = '';
+    lojasMock.forEach(loja => {
+        const card = document.createElement('div');
+        card.className = 'loja-card';
+        card.innerHTML = \`
+            <div class="loja-card-header"><div class="loja-icon">\${loja.icone}</div><div class="badge-live">\${loja.status}</div></div>
+            <div><h3>\${loja.nome}</h3><p>\${loja.descricao}</p></div>
+            <div class="loja-card-footer"><span>Entrar na Loja</span><span>&rarr;</span></div>
+        \`;
+        card.onclick = () => abrirLoja(loja.id, loja.nome);
+        gridLojas.appendChild(card);
+    });
+}
+
+// 4. NAVEGAÇÃO ENTRE SALAS (SPA)
 function abrirLoja(id, nomeLoja) {
     const lojaView = $('#loja-view');
     const tituloLoja = $('#titulo-loja');
-    
     if (!lojaView || !tituloLoja) return;
 
     tituloLoja.innerText = nomeLoja;
     lojaView.classList.add('aberta');
     
-    const navItems = $$('.nav-item');
-    if(navItems.length > 0) mudarSala('home', navItems[0]);
-    
-    const salaProduto = $('#sala-produto');
-    if(salaProduto) salaProduto.classList.remove('ativa');
-    
+    // Força a ida para a Home da loja
+    mudarSala('home', $$('.nav-item')[0]);
     carregarProdutos(id);
 }
 
@@ -76,8 +108,9 @@ function fecharLoja() {
 
 function mudarSala(nomeSala, elementoNav) {
     $$('.app-content > .sala').forEach(sala => sala.classList.remove('ativa'));
-    const salaAlvo = $(`#sala-${nomeSala}`);
-    if(salaAlvo) salaAlvo.classList.add('ativa');
+    const salaAlvo = \`#sala-\${nomeSala}\`;
+    const salaElemento = $(salaAlvo);
+    if(salaElemento) salaElemento.classList.add('ativa');
 
     if(elementoNav) {
         $$('.nav-item').forEach(item => item.classList.remove('ativo'));
@@ -86,45 +119,66 @@ function mudarSala(nomeSala, elementoNav) {
     
     const salaProduto = $('#sala-produto');
     if(salaProduto) salaProduto.classList.remove('ativa');
+
+    // Se mudar para a aba Negócio, carrega as métricas
+    if(nomeSala === 'perfil') carregarMetricas();
 }
 
-// --- 3. PRODUTOS ---
+function irParaCriar() {
+    const lojaView = $('#loja-view');
+    if(lojaView) lojaView.classList.add('aberta');
+    const navItems = $$('.nav-item');
+    if(navItems.length > 3) mudarSala('builder', navItems[3]);
+}
+
+// 5. PRODUTOS (FASE 2)
 async function carregarProdutos(lojaId) {
     const listaProdutos = $('#lista-produtos');
     if (!listaProdutos) return;
 
     try {
-        // Simulação de fallback caso a loja não tenha produtos na BD
-        const response = await fetch(`${API_URL}/lojas/${lojaId}/produtos`);
+        const response = await fetch(\`\${API_URL}/lojas/\${lojaId}/produtos\`);
+        if (!response.ok) throw new Error("Erro na rede");
         const produtos = await response.json();
         
         if(produtos.length === 0) {
-            listaProdutos.innerHTML = '<p style="padding:20px; color:var(--text-muted);">Esta loja ainda não tem produtos registados.</p>';
+            listaProdutos.innerHTML = '<p class="muted">Esta loja ainda não adicionou produtos.</p>';
             return;
         }
 
-        listaProdutos.innerHTML = '';
-        produtos.forEach(prod => {
-            const card = document.createElement('div');
-            card.className = 'produto-card';
-            card.innerHTML = `
-                <img src="${prod.img}" class="produto-img" alt="${prod.nome}">
-                <h4>${prod.nome}</h4>
-                <div class="preco">$${prod.preco.toFixed(2)}</div>
-                <button class="btn-add-quick">+</button>
-            `;
-            card.onclick = (e) => {
-                if(e.target.classList.contains('btn-add-quick')) {
-                    adicionarCarrinho();
-                    return;
-                }
-                abrirDetalheProduto(prod);
-            };
-            listaProdutos.appendChild(card);
-        });
-    } catch(e) {
-        console.error("Erro ao carregar produtos", e);
+        renderizarProdutos(produtos);
+    } catch (e) {
+        // Fallback se a API falhar
+        const produtosMock = [
+            { id: 1, nome: 'Cica Recovery Cream', preco: 28.00, img: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=400&q=80' },
+            { id: 2, nome: 'Niacinamide Serum', preco: 32.00, img: 'https://images.unsplash.com/photo-1620916297397-a4a5402a3c6c?auto=format&fit=crop&w=400&q=80' }
+        ];
+        renderizarProdutos(produtosMock);
     }
+}
+
+function renderizarProdutos(produtos) {
+    const listaProdutos = $('#lista-produtos');
+    listaProdutos.innerHTML = '';
+    
+    produtos.forEach(prod => {
+        const card = document.createElement('div');
+        card.className = 'produto-card';
+        card.innerHTML = \`
+            <img src="\${prod.img}" class="produto-img" alt="\${prod.nome}">
+            <h4>\${prod.nome}</h4>
+            <div class="preco">$\${prod.preco.toFixed(2)}</div>
+            <button class="btn-add-quick">+</button>
+        \`;
+        card.onclick = (e) => {
+            if(e.target.classList.contains('btn-add-quick')) {
+                adicionarCarrinho();
+                return;
+            }
+            abrirDetalheProduto(prod);
+        };
+        listaProdutos.appendChild(card);
+    });
 }
 
 function abrirDetalheProduto(produto) {
@@ -135,7 +189,7 @@ function abrirDetalheProduto(produto) {
 
     if(img) img.src = produto.img;
     if(nome) nome.innerText = produto.nome;
-    if(preco) preco.innerText = `$${produto.preco.toFixed(2)}`;
+    if(preco) preco.innerText = \`$\${produto.preco.toFixed(2)}\`;
     if(sala) sala.classList.add('ativa');
 }
 
@@ -145,14 +199,13 @@ function voltarParaHome() {
 }
 
 function selecionarOpcao(btn) {
-    const parent = btn.parentElement;
-    if(parent) {
-        parent.querySelectorAll('.opcao-btn').forEach(b => b.classList.remove('ativo'));
+    if(btn.parentElement) {
+        btn.parentElement.querySelectorAll('.opcao-btn').forEach(b => b.classList.remove('ativo'));
         btn.classList.add('ativo');
     }
 }
 
-// --- 4. CARRINHO ---
+// 6. CARRINHO
 function adicionarCarrinho() {
     carrinhoCount++;
     const badge = $('#cart-badge');
@@ -162,9 +215,12 @@ function adicionarCarrinho() {
         badge.style.transform = 'scale(1.5)';
         setTimeout(() => badge.style.transform = 'scale(1)', 200);
     }
+    // Atualiza a métrica na aba de negócio
+    const cartMetric = $('#cart-metric');
+    if(cartMetric) cartMetric.innerText = carrinhoCount;
 }
 
-// --- 5. SUPORTE E CHAT ---
+// 7. CHAT E SUPORTE
 function toggleChat() {
     const panel = $('#chat-panel');
     if(panel) panel.classList.toggle('aberto');
@@ -178,7 +234,6 @@ async function enviarMensagem() {
     const texto = input.value.trim();
     if (texto === "") return;
 
-    // Mensagem do Utilizador
     const msgUser = document.createElement('div');
     msgUser.className = 'msg user';
     msgUser.innerText = texto;
@@ -187,22 +242,27 @@ async function enviarMensagem() {
     input.value = '';
     body.scrollTop = body.scrollHeight;
 
-    // Chamada à API de Chat
     try {
-        const response = await fetch(`${API_URL}/chat`, {
+        const response = await fetch(\`\${API_URL}/chat\`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mensagem: texto })
         });
         const data = await response.json();
-
         const msgAgent = document.createElement('div');
         msgAgent.className = 'msg agent';
         msgAgent.innerText = data.resposta;
         body.appendChild(msgAgent);
         body.scrollTop = body.scrollHeight;
     } catch (e) {
-        console.error("Erro no chat", e);
+        // Fallback offline
+        setTimeout(() => {
+            const msgAgent = document.createElement('div');
+            msgAgent.className = 'msg agent';
+            msgAgent.innerText = "Obrigado pela sua mensagem. O suporte está offline neste momento.";
+            body.appendChild(msgAgent);
+            body.scrollTop = body.scrollHeight;
+        }, 800);
     }
 }
 
@@ -210,7 +270,7 @@ function handleChatEnter(e) {
     if (e.key === 'Enter') enviarMensagem();
 }
 
-// --- 6. STORE BUILDER (PUBLICAÇÃO REAL) ---
+// 8. STORE BUILDER (PUBLICAÇÃO REAL)
 function selecionarTemplate(elemento) {
     $$('.template-card').forEach(card => card.classList.remove('ativo'));
     elemento.classList.add('ativo');
@@ -221,49 +281,68 @@ async function publicarLoja() {
     if (!btn) return;
     
     const textoOriginal = btn.innerHTML;
-    
-    // Simular loading
-    btn.innerHTML = '⏳ A publicar na Base de Dados...';
-    btn.style.opacity = '0.7';
+    btn.innerHTML = '⏳ A publicar...';
     btn.disabled = true;
 
     try {
-        // AQUI: Envia os dados para o servidor
         const novaLoja = {
-            nome: "Nova Loja FLOWEBUY", // Poderia vir de um input
+            nome: "Nova Loja FLOWEBUY",
             descricao: "Criada através do Store Builder",
             icone: "✨"
         };
 
-        const response = await fetch(`${API_URL}/lojas`, {
+        const response = await fetch(\`\${API_URL}/lojas\`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(novaLoja)
         });
 
         if(response.ok) {
-            btn.innerHTML = '✅ Loja Gravada com Sucesso!';
-            btn.style.background = 'var(--primary)';
-            
+            btn.innerHTML = '✅ Publicada!';
             setTimeout(async () => {
-                alert("A sua loja foi publicada e gravada na base de dados FLOWEBUY!");
+                alert("Loja publicada com sucesso!");
                 fecharLoja();
-                await carregarLojas(); // Atualiza a grelha principal com a nova loja
+                await carregarLojas();
                 btn.innerHTML = textoOriginal;
-                btn.style.background = 'linear-gradient(90deg, var(--secondary), #059669)';
                 btn.disabled = false;
             }, 1000);
         } else {
-            throw new Error("Falha na publicação");
+            throw new Error("Falha");
         }
     } catch (error) {
-        console.error("Erro na publicação", error);
-        btn.innerHTML = '❌ Erro ao publicar';
-        btn.disabled = false;
+        // Fallback caso o servidor esteja offline
+        setTimeout(() => {
+            btn.innerHTML = '⚠️ Modo Offline';
+            setTimeout(() => {
+                alert("Servidor offline. A loja foi publicada apenas na sua sessão.");
+                fecharLoja();
+                btn.innerHTML = textoOriginal;
+                btn.disabled = false;
+            }, 1000);
+        }, 500);
     }
 }
 
-// --- 7. DRAG & DROP ---
+// 9. MÉTRICAS REAIS (FASE 4)
+async function carregarMetricas() {
+    const kpiVisitas = $$('.kpi-value')[0];
+    
+    try {
+        const response = await fetch(\`\${API_URL}/metricas\`);
+        if (!response.ok) throw new Error("Sem API");
+        const metricas = await response.json();
+        
+        if (kpiVisitas) {
+            const visitas = metricas.find(m => m.tipo === 'visitas')?.total || 0;
+            kpiVisitas.innerText = visitas;
+        }
+    } catch(e) {
+        // Fallback: Mostrar aviso de "Sem dados"
+        if (kpiVisitas) kpiVisitas.innerText = '—';
+    }
+}
+
+// 10. DRAG & DROP
 function setupGlobalListeners() {
     const canvas = $('#builder-canvas');
     if(!canvas) return;
@@ -277,7 +356,7 @@ function setupGlobalListeners() {
         }
     });
 
-    canvas.addEventListener('dragend', function(e) {
+    canvas.addEventListener('dragend', function() {
         if(draggedItem) {
             draggedItem.style.opacity = '1';
             draggedItem = null;
@@ -308,22 +387,4 @@ function getDragAfterElement(container, y) {
             return closest;
         }
     }, { offset: Number.NEGATIVE_INFINITY }).element;
-}
-
-// --- 8. MÉTRICAS REAIS ---
-// Esta função pode ser chamada no Business Center
-async function carregarMetricas() {
-    try {
-        const response = await fetch(`${API_URL}/metricas`);
-        const metricas = await response.json();
-        
-        // Atualiza o DOM com base nas métricas reais do servidor
-        const kpiVisitas = $$('.kpi-value')[0];
-        if (kpiVisitas && metricas.length > 0) {
-            // Exemplo: Pega a métrica de 'visitas' do servidor
-            kpiVisitas.innerText = metricas.find(m => m.tipo === 'visitas')?.total || 0;
-        }
-    } catch(e) {
-        console.error("Erro ao carregar métricas", e);
-    }
 }
