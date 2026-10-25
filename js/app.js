@@ -56,6 +56,8 @@ async function initAuth() {
     const { data } = window.supabaseClient.auth.onAuthStateChange((_event, session) => {
         currentUser = session ? session.user : null;
         atualizarHeaderAuth();
+        // Mantém o seletor de gestão sincronizado com a sessão autenticada.
+        carregarLojas();
     });
     authStateSubscription = data.subscription;
 }
@@ -207,7 +209,7 @@ async function carregarLojas() {
         if (!window.supabaseClient) throw new Error('Cliente Supabase não inicializado.');
         const { data: lojas, error } = await window.supabaseClient
             .from('lojas')
-            .select('id, nome, descricao, icone, status, created_at')
+            .select('id, owner_id, nome, descricao, icone, status, created_at')
             .order('created_at', { ascending: false });
         if (error) throw error;
 
@@ -238,21 +240,25 @@ function preencherSeletorLojas(lojas) {
     const select = $('#produto-loja');
     if (!select) return;
     const valorAnterior = select.value;
+    // O mercado continua público; o formulário de produtos só lista lojas do utilizador autenticado.
+    const lojasGeriveis = currentUser ? lojas.filter(loja => loja.owner_id === currentUser.id) : [];
     select.innerHTML = '';
 
     const placeholder = document.createElement('option');
     placeholder.value = '';
-    placeholder.textContent = lojas.length ? 'Selecione uma loja…' : 'Ligue a API para gerir produtos';
+    placeholder.textContent = !currentUser
+        ? 'Inicie sessão para gerir produtos'
+        : (lojasGeriveis.length ? 'Selecione a sua loja…' : 'Crie uma loja para adicionar produtos');
     select.appendChild(placeholder);
 
-    lojas.forEach(loja => {
+    lojasGeriveis.forEach(loja => {
         const option = document.createElement('option');
         option.value = String(loja.id);
         option.textContent = String(loja.nome || 'Loja sem nome');
         select.appendChild(option);
     });
 
-    if (valorAnterior && lojas.some(loja => String(loja.id) === valorAnterior)) {
+    if (valorAnterior && lojasGeriveis.some(loja => String(loja.id) === valorAnterior)) {
         select.value = valorAnterior;
     }
 }
@@ -592,7 +598,11 @@ async function adicionarProduto() {
     try {
         const { data: { user }, error: authError } = await window.supabaseClient.auth.getUser();
         if (authError) throw authError;
-        if (!user) throw new Error('Inicie sessão antes de adicionar produtos.');
+        if (!user) { abrirAuth('login'); throw new Error('Inicie sessão antes de adicionar produtos.'); }
+        const { data: lojaPropria, error: lojaError } = await window.supabaseClient
+            .from('lojas').select('id').eq('id', lojaId).eq('owner_id', user.id).maybeSingle();
+        if (lojaError) throw lojaError;
+        if (!lojaPropria) throw new Error('Só pode adicionar produtos às suas próprias lojas.');
         const { error } = await window.supabaseClient.from('produtos').insert({
             loja_id: lojaId, nome, preco, img: img || null, stock: 0
         });
