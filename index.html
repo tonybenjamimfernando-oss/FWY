@@ -52,6 +52,42 @@
     'sb_publishable_yp7ad33iJELOdqmZp5Sp6Q_DWj53vym'
   );
 </script>
+
+<!-- MODAL DE AUTENTICAÇÃO FLOWEBUY -->
+<div id="auth-modal" class="auth-modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+  <div class="auth-modal-content">
+    <button class="auth-close" type="button" onclick="fecharAuth()" aria-label="Fechar janela">✕</button>
+    <div id="auth-login-view">
+      <h2 class="auth-title" id="auth-title">Entrar na FLOWEBUY</h2>
+      <p class="auth-subtitle">Bem-vindo de volta ao seu ecossistema.</p>
+      <form id="login-form">
+        <label class="auth-label" for="login-email">E-mail</label>
+        <input type="email" id="login-email" class="auth-input" placeholder="O seu e-mail" autocomplete="email" required>
+        <label class="auth-label" for="login-password">Palavra-passe</label>
+        <input type="password" id="login-password" class="auth-input" placeholder="A sua palavra-passe" autocomplete="current-password" required>
+        <p class="auth-message" id="login-message" role="status" aria-live="polite"></p>
+        <button type="submit" class="auth-btn-primary" id="login-btn">Entrar</button>
+      </form>
+      <p class="auth-switch">Ainda não tem conta? <a href="#registar" onclick="switchAuthView('register');return false">Criar conta</a></p>
+    </div>
+    <div id="auth-register-view" style="display:none">
+      <h2 class="auth-title">Criar conta</h2>
+      <p class="auth-subtitle">Comece a vender no ecossistema FLOWEBUY.</p>
+      <form id="register-form">
+        <label class="auth-label" for="reg-name">Nome completo</label>
+        <input type="text" id="reg-name" class="auth-input" placeholder="O seu nome completo" autocomplete="name" maxlength="120" required>
+        <label class="auth-label" for="reg-email">E-mail</label>
+        <input type="email" id="reg-email" class="auth-input" placeholder="O seu e-mail" autocomplete="email" required>
+        <label class="auth-label" for="reg-password">Palavra-passe</label>
+        <input type="password" id="reg-password" class="auth-input" placeholder="Mínimo de 8 caracteres" autocomplete="new-password" minlength="8" required>
+        <p class="auth-message" id="register-message" role="status" aria-live="polite"></p>
+        <button type="submit" class="auth-btn-primary" id="reg-btn">Criar conta</button>
+      </form>
+      <p class="auth-switch">Já tem conta? <a href="#entrar" onclick="switchAuthView('login');return false">Entrar</a></p>
+    </div>
+  </div>
+</div>
+
 <script src="js/app.js"></script>
 </body>
 </html>
