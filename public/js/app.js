@@ -43,25 +43,36 @@ function setupSearchListener() {
 async function carregarLojas() {
     const gridLojas = $('#grid-lojas');
     if (!gridLojas) return;
+    gridLojas.innerHTML = '<p class="loading-state">A carregar lojas…</p>';
 
     try {
-        const response = await fetch(`${API_URL}/lojas`);
-        if (!response.ok) throw new Error("Erro na rede");
-        const lojas = await response.json();
-        preencherSeletorLojas(lojas);
+        if (!window.supabaseClient) throw new Error('Cliente Supabase não inicializado.');
+        const { data: lojas, error } = await window.supabaseClient
+            .from('lojas')
+            .select('id, nome, descricao, icone, status, created_at')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
 
+        preencherSeletorLojas(lojas || []);
         gridLojas.innerHTML = '';
-        if (lojas.length === 0) {
-            gridLojas.innerHTML = '<p class="loading-state">Nenhuma loja registada ainda. Crie a primeira!</p>';
+        if (!lojas || lojas.length === 0) {
+            gridLojas.innerHTML = '<p class="loading-state">Nenhuma loja publicada ainda. Inicie sessão para criar a primeira.</p>';
+            aplicarFiltroLojas();
             return;
         }
-
         lojas.forEach(loja => gridLojas.appendChild(criarCartaoLoja(loja)));
         aplicarFiltroLojas();
     } catch (error) {
-        console.warn("API indisponível. A usar fallback offline.");
-        preencherSeletorLojas([]);
-        renderizarLojasFallback();
+        console.warn('Supabase indisponível; a apresentar demonstração local.', error);
+        const locais = JSON.parse(localStorage.getItem('flowebuy_lojas') || '[]');
+        preencherSeletorLojas(locais);
+        if (locais.length) {
+            gridLojas.innerHTML = '';
+            locais.forEach(loja => gridLojas.appendChild(criarCartaoLoja(loja)));
+            aplicarFiltroLojas();
+        } else {
+            renderizarLojasFallback();
+        }
     }
 }
 
@@ -198,25 +209,23 @@ function irParaCriar() {
 async function carregarProdutos(lojaId) {
     const listaProdutos = $('#lista-produtos');
     if (!listaProdutos) return;
-
+    listaProdutos.innerHTML = '<p class="muted">A carregar produtos…</p>';
     try {
-        const response = await fetch(`${API_URL}/lojas/${lojaId}/produtos`);
-        if (!response.ok) throw new Error("Erro na rede");
-        const produtos = await response.json();
-        
-        if(produtos.length === 0) {
+        if (!window.supabaseClient) throw new Error('Cliente Supabase não inicializado.');
+        const { data: produtos, error } = await window.supabaseClient
+            .from('produtos')
+            .select('id, loja_id, nome, preco, img, stock, created_at')
+            .eq('loja_id', lojaId)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        if (!produtos || produtos.length === 0) {
             listaProdutos.innerHTML = '<p class="muted">Esta loja ainda não adicionou produtos.</p>';
             return;
         }
-
         renderizarProdutos(produtos);
-    } catch (e) {
-        // Fallback se a API falhar
-        const produtosMock = [
-            { id: 1, nome: 'Cica Recovery Cream', preco: 28.00, img: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=400&q=80' },
-            { id: 2, nome: 'Niacinamide Serum', preco: 32.00, img: 'https://images.unsplash.com/photo-1620916297397-a4a5402a3c6c?auto=format&fit=crop&w=400&q=80' }
-        ];
-        renderizarProdutos(produtosMock);
+    } catch (error) {
+        console.warn('Não foi possível carregar produtos do Supabase.', error);
+        listaProdutos.innerHTML = '<p class="muted">Não foi possível carregar os produtos. Tente novamente mais tarde.</p>';
     }
 }
 
@@ -368,49 +377,32 @@ async function publicarLoja() {
     const iconeInput = $('#loja-icone');
     const feedback = $('#builder-feedback');
     if (!btn || !nomeInput) return;
-
     const nome = nomeInput.value.trim();
     const descricao = descricaoInput ? descricaoInput.value.trim() : '';
     const icone = iconeInput ? iconeInput.value : '🏪';
     const mostrarFeedback = (mensagem, estado) => {
-        if (!feedback) return;
-        feedback.textContent = mensagem;
-        feedback.dataset.state = estado || '';
+        if (feedback) { feedback.textContent = mensagem; feedback.dataset.state = estado || ''; }
     };
-
-    if (!nome) {
-        mostrarFeedback('Introduza o nome da loja antes de publicar.', 'error');
-        nomeInput.focus();
-        return;
-    }
-    if (nome.length > 120 || descricao.length > 1000) {
-        mostrarFeedback('Verifique os limites: nome até 120 e descrição até 1000 caracteres.', 'error');
-        return;
-    }
-
+    if (!nome) { mostrarFeedback('Introduza o nome da loja antes de publicar.', 'error'); nomeInput.focus(); return; }
+    if (nome.length > 120 || descricao.length > 1000) { mostrarFeedback('Verifique os limites do nome e da descrição.', 'error'); return; }
     const textoOriginal = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'A guardar…';
-    mostrarFeedback('A guardar a loja na base de dados de desenvolvimento…', '');
     try {
-        const response = await fetch(`${API_URL}/lojas`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome, descricao, icone })
+        const { data: { user }, error: authError } = await window.supabaseClient.auth.getUser();
+        if (authError) throw authError;
+        if (!user) throw new Error('Inicie sessão na FLOWEBUY antes de publicar uma loja.');
+        const { error } = await window.supabaseClient.from('lojas').insert({
+            owner_id: user.id, nome, descricao, icone, status: 'Live'
         });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || 'O servidor recusou a criação da loja.');
-        mostrarFeedback('Loja guardada. A atualizar o mercado…', 'success');
+        if (error) throw error;
+        mostrarFeedback('Loja guardada com sucesso no Supabase.', 'success');
         await carregarLojas();
-        alert('A loja "' + nome + '" foi guardada no ambiente de desenvolvimento.');
-        fecharLoja();
         nomeInput.value = '';
         if (descricaoInput) descricaoInput.value = '';
         if (iconeInput) iconeInput.value = '🏪';
     } catch (error) {
-        mostrarFeedback(error.message === 'Failed to fetch'
-            ? 'Não foi possível contactar a API. Confirme se o servidor de desenvolvimento está ligado.'
-            : error.message, 'error');
+        mostrarFeedback(error.message || 'Não foi possível guardar a loja.', 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = textoOriginal;
@@ -425,55 +417,35 @@ async function adicionarProduto() {
     const feedback = $('#product-feedback');
     const btn = $('.product-form .btn-publish');
     if (!storeSelect || !nomeInput || !precoInput || !btn) return;
-
     const lojaId = Number(storeSelect.value);
     const nome = nomeInput.value.trim();
     const preco = Number(precoInput.value);
     const img = imagemInput ? imagemInput.value.trim() : '';
     const mostrarFeedback = (mensagem, estado) => {
-        if (!feedback) return;
-        feedback.textContent = mensagem;
-        feedback.dataset.state = estado || '';
+        if (feedback) { feedback.textContent = mensagem; feedback.dataset.state = estado || ''; }
     };
-
-    if (!Number.isSafeInteger(lojaId) || lojaId < 1) {
-        mostrarFeedback('Selecione uma loja existente.', 'error');
-        storeSelect.focus();
-        return;
-    }
-    if (!nome || nome.length > 160) {
-        mostrarFeedback('Introduza o nome do produto (até 160 caracteres).', 'error');
-        nomeInput.focus();
-        return;
-    }
-    if (precoInput.value.trim() === '' || !Number.isFinite(preco) || preco < 0) {
-        mostrarFeedback('Introduza um preço válido igual ou superior a zero.', 'error');
-        precoInput.focus();
-        return;
-    }
-
+    if (!Number.isSafeInteger(lojaId) || lojaId < 1) { mostrarFeedback('Selecione uma loja válida.', 'error'); return; }
+    if (!nome || nome.length > 160) { mostrarFeedback('Introduza o nome do produto (até 160 caracteres).', 'error'); return; }
+    if (precoInput.value.trim() === '' || !Number.isFinite(preco) || preco < 0) { mostrarFeedback('Introduza um preço válido.', 'error'); return; }
+    if (img && !/^https?:\/\//i.test(img)) { mostrarFeedback('A imagem deve usar um endereço HTTP ou HTTPS.', 'error'); return; }
     const textoOriginal = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'A guardar…';
-    mostrarFeedback('A guardar o produto…', '');
     try {
-        const response = await fetch(`${API_URL}/lojas/${lojaId}/produtos`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome, preco, img })
+        const { data: { user }, error: authError } = await window.supabaseClient.auth.getUser();
+        if (authError) throw authError;
+        if (!user) throw new Error('Inicie sessão antes de adicionar produtos.');
+        const { error } = await window.supabaseClient.from('produtos').insert({
+            loja_id: lojaId, nome, preco, img: img || null, stock: 0
         });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || 'Não foi possível guardar o produto.');
-
-        mostrarFeedback('Produto guardado na base de dados.', 'success');
+        if (error) throw error;
+        mostrarFeedback('Produto guardado com sucesso no Supabase.', 'success');
         nomeInput.value = '';
         precoInput.value = '';
         if (imagemInput) imagemInput.value = '';
         await carregarProdutos(lojaId);
     } catch (error) {
-        mostrarFeedback(error.message === 'Failed to fetch'
-            ? 'Não foi possível contactar a API. Confirme se o servidor está ligado.'
-            : error.message, 'error');
+        mostrarFeedback(error.message || 'Não foi possível guardar o produto.', 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = textoOriginal;
