@@ -15,3 +15,7 @@
 .builder-feedback:empty{display:none}
 .builder-feedback[data-state="error"]{color:#b42318}
 .builder-feedback[data-state="success"]{color:#08795e}
+
+.product-form{display:grid;gap:8px;margin:18px 0 22px;padding:18px;background:#fff;border:1px solid var(--line);border-radius:16px}
+.product-form h3{margin:0 0 6px;font-size:1rem}
+.product-form .btn-publish{justify-self:start;margin-top:6px}
