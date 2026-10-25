@@ -48,9 +48,10 @@ async function carregarLojas() {
         const response = await fetch(`${API_URL}/lojas`);
         if (!response.ok) throw new Error("Erro na rede");
         const lojas = await response.json();
-        
+        preencherSeletorLojas(lojas);
+
         gridLojas.innerHTML = '';
-        if(lojas.length === 0) {
+        if (lojas.length === 0) {
             gridLojas.innerHTML = '<p class="loading-state">Nenhuma loja registada ainda. Crie a primeira!</p>';
             return;
         }
@@ -59,8 +60,31 @@ async function carregarLojas() {
         aplicarFiltroLojas();
     } catch (error) {
         console.warn("API indisponível. A usar fallback offline.");
-        // FALLBACK OFFLINE: Se o servidor não estiver ligado, mostra dados simulados
+        preencherSeletorLojas([]);
         renderizarLojasFallback();
+    }
+}
+
+function preencherSeletorLojas(lojas) {
+    const select = $('#produto-loja');
+    if (!select) return;
+    const valorAnterior = select.value;
+    select.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = lojas.length ? 'Selecione uma loja…' : 'Ligue a API para gerir produtos';
+    select.appendChild(placeholder);
+
+    lojas.forEach(loja => {
+        const option = document.createElement('option');
+        option.value = String(loja.id);
+        option.textContent = String(loja.nome || 'Loja sem nome');
+        select.appendChild(option);
+    });
+
+    if (valorAnterior && lojas.some(loja => String(loja.id) === valorAnterior)) {
+        select.value = valorAnterior;
     }
 }
 
@@ -386,6 +410,69 @@ async function publicarLoja() {
     } catch (error) {
         mostrarFeedback(error.message === 'Failed to fetch'
             ? 'Não foi possível contactar a API. Confirme se o servidor de desenvolvimento está ligado.'
+            : error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = textoOriginal;
+    }
+}
+
+async function adicionarProduto() {
+    const storeSelect = $('#produto-loja');
+    const nomeInput = $('#novo-produto-nome');
+    const precoInput = $('#novo-produto-preco');
+    const imagemInput = $('#novo-produto-imagem');
+    const feedback = $('#product-feedback');
+    const btn = $('.product-form .btn-publish');
+    if (!storeSelect || !nomeInput || !precoInput || !btn) return;
+
+    const lojaId = Number(storeSelect.value);
+    const nome = nomeInput.value.trim();
+    const preco = Number(precoInput.value);
+    const img = imagemInput ? imagemInput.value.trim() : '';
+    const mostrarFeedback = (mensagem, estado) => {
+        if (!feedback) return;
+        feedback.textContent = mensagem;
+        feedback.dataset.state = estado || '';
+    };
+
+    if (!Number.isSafeInteger(lojaId) || lojaId < 1) {
+        mostrarFeedback('Selecione uma loja existente.', 'error');
+        storeSelect.focus();
+        return;
+    }
+    if (!nome || nome.length > 160) {
+        mostrarFeedback('Introduza o nome do produto (até 160 caracteres).', 'error');
+        nomeInput.focus();
+        return;
+    }
+    if (precoInput.value.trim() === '' || !Number.isFinite(preco) || preco < 0) {
+        mostrarFeedback('Introduza um preço válido igual ou superior a zero.', 'error');
+        precoInput.focus();
+        return;
+    }
+
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'A guardar…';
+    mostrarFeedback('A guardar o produto…', '');
+    try {
+        const response = await fetch(`${API_URL}/lojas/${lojaId}/produtos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, preco, img })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Não foi possível guardar o produto.');
+
+        mostrarFeedback('Produto guardado na base de dados.', 'success');
+        nomeInput.value = '';
+        precoInput.value = '';
+        if (imagemInput) imagemInput.value = '';
+        await carregarProdutos(lojaId);
+    } catch (error) {
+        mostrarFeedback(error.message === 'Failed to fetch'
+            ? 'Não foi possível contactar a API. Confirme se o servidor está ligado.'
             : error.message, 'error');
     } finally {
         btn.disabled = false;
