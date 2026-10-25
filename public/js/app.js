@@ -784,14 +784,13 @@ async function carregarMetricas() {
     }
     if (aviso) aviso.textContent = 'A consultar dados reais das suas lojas e encomendas…';
     try {
-        const { data: lojas, error: lojasError } = await window.supabaseClient
-            .from('lojas').select('id,nome').eq('owner_id', currentUser.id);
+        const { data: lojas, error: lojasError } = await window.supabaseClient.from('lojas').select('id,nome').eq('owner_id', currentUser.id);
         if (lojasError) throw lojasError;
         const ids = (lojas || []).map(loja => Number(loja.id)).filter(id => Number.isSafeInteger(id) && id > 0);
         if (!ids.length) {
             if (encomendasKpi) encomendasKpi.textContent = '0';
             if (stockKpi) stockKpi.textContent = '0';
-            if (receitaKpi) receitaKpi.textContent = '$0.00';
+            if (receitaKpi) receitaKpi.textContent = 'USD 0.00';
             if (aviso) aviso.textContent = 'Ainda não tem lojas próprias. Crie uma loja para começar a acompanhar o negócio.';
             if (chart) chart.textContent = 'Ainda não existem encomendas para as suas lojas.';
             if (chartLabel) chartLabel.textContent = 'Sem encomendas';
@@ -810,14 +809,14 @@ async function carregarMetricas() {
         const lowStock = (produtos || []).filter(product => Number(product.stock) < 5);
         if (encomendasKpi) encomendasKpi.textContent = String(orders.length);
         if (stockKpi) stockKpi.textContent = String(lowStock.length);
-        if (receitaKpi) receitaKpi.textContent = '$' + revenue.toFixed(2);
+        if (receitaKpi) receitaKpi.textContent = 'USD ' + revenue.toFixed(2);
         if (aviso) aviso.textContent = lowStock.length
             ? 'Atenção: ' + lowStock.length + ' produto(s) com stock inferior a 5 unidades. Reveja o inventário.'
             : 'Dados reais das suas lojas. A receita considera apenas encomendas com estado Pago.';
         if (chartLabel) chartLabel.textContent = paidOrders.length + ' encomenda(s) paga(s)';
         if (chart) {
             chart.textContent = paidOrders.length
-                ? 'Receita confirmada: $' + revenue.toFixed(2) + '. Encomendas pagas: ' + paidOrders.length + '. Encomendas pendentes/canceladas não entram na receita.'
+                ? 'Receita confirmada: USD ' + revenue.toFixed(2) + '. Encomendas pagas: ' + paidOrders.length + '. Encomendas pendentes/canceladas não entram na receita.'
                 : 'Ainda não há encomendas pagas. As encomendas pendentes não são contabilizadas como receita.';
         }
         if (inventario) {
