@@ -28,7 +28,7 @@ async function carregarLojas() {
     if (!gridLojas) return;
 
     try {
-        const response = await fetch(\`\${API_URL}/lojas\`);
+        const response = await fetch(`${API_URL}/lojas`);
         if (!response.ok) throw new Error("Erro na rede");
         const lojas = await response.json();
         
@@ -41,20 +41,20 @@ async function carregarLojas() {
         lojas.forEach(loja => {
             const card = document.createElement('div');
             card.className = 'loja-card';
-            card.innerHTML = \`
+            card.innerHTML = `
                 <div class="loja-card-header">
-                    <div class="loja-icon">\${loja.icone}</div>
-                    <div class="badge-live">\${loja.status || 'Live'}</div>
+                    <div class="loja-icon">${loja.icone}</div>
+                    <div class="badge-live">${loja.status || 'Live'}</div>
                 </div>
                 <div>
-                    <h3>\${loja.nome}</h3>
-                    <p>\${loja.descricao || 'Sem descrição.'}</p>
+                    <h3>${loja.nome}</h3>
+                    <p>${loja.descricao || 'Sem descrição.'}</p>
                 </div>
                 <div class="loja-card-footer">
                     <span>Entrar na Loja</span>
                     <span>&rarr;</span>
                 </div>
-            \`;
+            `;
             card.onclick = () => abrirLoja(loja.id, loja.nome);
             gridLojas.appendChild(card);
         });
@@ -77,11 +77,11 @@ function renderizarLojasFallback() {
     lojasMock.forEach(loja => {
         const card = document.createElement('div');
         card.className = 'loja-card';
-        card.innerHTML = \`
-            <div class="loja-card-header"><div class="loja-icon">\${loja.icone}</div><div class="badge-live">\${loja.status}</div></div>
-            <div><h3>\${loja.nome}</h3><p>\${loja.descricao}</p></div>
+        card.innerHTML = `
+            <div class="loja-card-header"><div class="loja-icon">${loja.icone}</div><div class="badge-live">${loja.status}</div></div>
+            <div><h3>${loja.nome}</h3><p>${loja.descricao}</p></div>
             <div class="loja-card-footer"><span>Entrar na Loja</span><span>&rarr;</span></div>
-        \`;
+        `;
         card.onclick = () => abrirLoja(loja.id, loja.nome);
         gridLojas.appendChild(card);
     });
@@ -108,7 +108,7 @@ function fecharLoja() {
 
 function mudarSala(nomeSala, elementoNav) {
     $$('.app-content > .sala').forEach(sala => sala.classList.remove('ativa'));
-    const salaAlvo = \`#sala-\${nomeSala}\`;
+    const salaAlvo = `#sala-${nomeSala}`;
     const salaElemento = $(salaAlvo);
     if(salaElemento) salaElemento.classList.add('ativa');
 
@@ -137,7 +137,7 @@ async function carregarProdutos(lojaId) {
     if (!listaProdutos) return;
 
     try {
-        const response = await fetch(\`\${API_URL}/lojas/\${lojaId}/produtos\`);
+        const response = await fetch(`${API_URL}/lojas/${lojaId}/produtos`);
         if (!response.ok) throw new Error("Erro na rede");
         const produtos = await response.json();
         
@@ -164,12 +164,12 @@ function renderizarProdutos(produtos) {
     produtos.forEach(prod => {
         const card = document.createElement('div');
         card.className = 'produto-card';
-        card.innerHTML = \`
-            <img src="\${prod.img}" class="produto-img" alt="\${prod.nome}">
-            <h4>\${prod.nome}</h4>
-            <div class="preco">$\${prod.preco.toFixed(2)}</div>
+        card.innerHTML = `
+            <img src="${prod.img}" class="produto-img" alt="${prod.nome}">
+            <h4>${prod.nome}</h4>
+            <div class="preco">$${prod.preco.toFixed(2)}</div>
             <button class="btn-add-quick">+</button>
-        \`;
+        `;
         card.onclick = (e) => {
             if(e.target.classList.contains('btn-add-quick')) {
                 adicionarCarrinho();
@@ -189,7 +189,7 @@ function abrirDetalheProduto(produto) {
 
     if(img) img.src = produto.img;
     if(nome) nome.innerText = produto.nome;
-    if(preco) preco.innerText = \`$\${produto.preco.toFixed(2)}\`;
+    if(preco) preco.innerText = `$${produto.preco.toFixed(2)}`;
     if(sala) sala.classList.add('ativa');
 }
 
@@ -243,7 +243,7 @@ async function enviarMensagem() {
     body.scrollTop = body.scrollHeight;
 
     try {
-        const response = await fetch(\`\${API_URL}/chat\`, {
+        const response = await fetch(`${API_URL}/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mensagem: texto })
@@ -291,7 +291,7 @@ async function publicarLoja() {
             icone: "✨"
         };
 
-        const response = await fetch(\`\${API_URL}/lojas\`, {
+        const response = await fetch(`${API_URL}/lojas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(novaLoja)
@@ -328,7 +328,7 @@ async function carregarMetricas() {
     const kpiVisitas = $$('.kpi-value')[0];
     
     try {
-        const response = await fetch(\`\${API_URL}/metricas\`);
+        const response = await fetch(`${API_URL}/metricas`);
         if (!response.ok) throw new Error("Sem API");
         const metricas = await response.json();
         
