@@ -479,8 +479,93 @@ function feedbackCarrinho(mensagem, estado) {
 }
 function formatarPreco(valor) {
     const n = Number(valor);
-    return Number.isFinite(n) ? '
-
+    return Number.isFinite(n) ? '$' + n.toFixed(2) : 'Preço indisponível';
+}
+async function adicionarAoCarrinho(produtoId) {
+    if (!currentUser) { abrirAuth('login'); mensagemAuth('login', 'Inicie sessão para guardar produtos no seu carrinho.', 'error'); return; }
+    try {
+        const { error } = await window.supabaseClient.rpc('adicionar_ao_carrinho', { p_produto_id: produtoId });
+        if (error) throw error;
+        await atualizarBadgeCarrinho();
+        feedbackCarrinho('Produto adicionado ao carrinho.', 'success');
+    } catch (error) { console.error('Falha ao adicionar ao carrinho:', error); window.alert(error.message || 'Não foi possível adicionar este produto.'); }
+}
+function adicionarCarrinho() {
+    if (produtoSelecionadoId == null) { window.alert('Abra primeiro um produto válido.'); return; }
+    adicionarAoCarrinho(produtoSelecionadoId);
+}
+async function atualizarBadgeCarrinho() {
+    const badge = $('#cart-badge');
+    if (!currentUser || !window.supabaseClient) {
+        carrinhoCount = 0;
+        if (badge) { badge.innerText = '0'; badge.classList.remove('show'); }
+        const metric = $('#cart-metric'); if (metric) metric.innerText = '0';
+        return;
+    }
+    try {
+        const { data, error } = await window.supabaseClient.from('carrinho').select('quantidade');
+        if (error) throw error;
+        carrinhoCount = (data || []).reduce((sum, item) => sum + Number(item.quantidade || 0), 0);
+        if (badge) { badge.innerText = String(carrinhoCount); badge.classList.toggle('show', carrinhoCount > 0); }
+        const metric = $('#cart-metric'); if (metric) metric.innerText = String(carrinhoCount);
+    } catch (error) { console.warn('Não foi possível atualizar o carrinho:', error); if (badge) badge.innerText = '!'; }
+}
+async function abrirCarrinho() {
+    if (!currentUser) { abrirAuth('login'); mensagemAuth('login', 'Inicie sessão para consultar o seu carrinho.', 'error'); return; }
+    mudarSala('carrinho', null);
+    await carregarCarrinho();
+}
+async function carregarCarrinho() {
+    const lista = $('#carrinho-lista'); const totalEl = $('#carrinho-total-valor');
+    if (!lista || !totalEl) return;
+    if (!currentUser) { lista.replaceChildren(); const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'Inicie sessão para consultar o seu carrinho.'; lista.appendChild(p); totalEl.textContent = '$0.00'; return; }
+    lista.innerHTML = '<p class="muted">A carregar o carrinho…</p>'; feedbackCarrinho('', '');
+    try {
+        const { data: itens, error } = await window.supabaseClient.from('carrinho').select('id, produto_id, quantidade, produtos(id, nome, preco, img, loja_id)').order('created_at', { ascending: true });
+        if (error) throw error;
+        lista.replaceChildren(); let totalEstimado = 0;
+        (itens || []).forEach(item => {
+            const produto = Array.isArray(item.produtos) ? item.produtos[0] : item.produtos; if (!produto) return;
+            const preco = Number(produto.preco); const quantidade = Number(item.quantidade);
+            if (Number.isFinite(preco) && preco >= 0 && Number.isFinite(quantidade)) totalEstimado += preco * quantidade;
+            const row = document.createElement('article'); row.className = 'cart-item-row';
+            const img = document.createElement('img'); img.className = 'cart-item-image'; img.alt = ''; img.loading = 'lazy';
+            if (typeof produto.img === 'string' && /^https?:\/\//i.test(produto.img)) img.src = produto.img;
+            const details = document.createElement('div'); details.className = 'cart-item-details';
+            const title = document.createElement('strong'); title.textContent = produto.nome || 'Produto';
+            const meta = document.createElement('span'); meta.textContent = 'Quantidade: ' + quantidade + ' × ' + formatarPreco(preco);
+            const subtotal = document.createElement('span'); subtotal.className = 'cart-item-subtotal'; subtotal.textContent = formatarPreco(preco * quantidade);
+            details.append(title, meta, subtotal);
+            const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'cart-remove-btn'; remove.textContent = 'Remover'; remove.setAttribute('aria-label', 'Remover ' + (produto.nome || 'produto') + ' do carrinho'); remove.addEventListener('click', () => removerDoCarrinho(item.id));
+            row.append(img, details, remove); lista.appendChild(row);
+        });
+        if (!itens || itens.length === 0) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'O seu carrinho está vazio. Explore uma loja e adicione produtos.'; lista.appendChild(p); }
+        totalEl.textContent = formatarPreco(totalEstimado);
+    } catch (error) { console.error('Falha ao carregar carrinho:', error); lista.innerHTML = '<p class="muted">Não foi possível carregar o carrinho. Tente novamente.</p>'; feedbackCarrinho('Erro ao consultar o carrinho. Verifique a ligação e tente novamente.', 'error'); }
+}
+async function removerDoCarrinho(itemId) {
+    if (!currentUser) return;
+    try { const { error } = await window.supabaseClient.from('carrinho').delete().eq('id', itemId); if (error) throw error; await Promise.all([carregarCarrinho(), atualizarBadgeCarrinho()]); }
+    catch (error) { console.error('Falha ao remover item:', error); feedbackCarrinho(error.message || 'Não foi possível remover o produto.', 'error'); }
+}
+async function finalizarCompra() {
+    if (checkoutEmCurso) return;
+    if (!currentUser) { abrirAuth('login'); return; }
+    const moradaEl = $('#morada-entrega'); const morada = moradaEl ? moradaEl.value.trim() : '';
+    if (morada.length < 5 || morada.length > 500) { feedbackCarrinho('Introduza uma morada de entrega válida (5 a 500 caracteres).', 'error'); if (moradaEl) moradaEl.focus(); return; }
+    const btn = $('.cart-checkout-btn'); const original = btn ? btn.textContent : 'Criar encomenda';
+    checkoutEmCurso = true; if (btn) { btn.disabled = true; btn.textContent = 'A criar encomenda…'; }
+    feedbackCarrinho('A validar preços e a registar a encomenda no servidor…', 'info');
+    try {
+        const { data, error } = await window.supabaseClient.rpc('fazer_checkout', { morada_entrega: morada }); if (error) throw error;
+        if (!data || data.success !== true) throw new Error('O servidor não confirmou a criação da encomenda.');
+        const orders = Array.isArray(data.encomendas) ? data.encomendas : []; const ids = orders.map(order => '#' + order.encomenda_id).join(', ');
+        const result = $('#checkout-result'); if (result) result.textContent = 'Encomenda(s) criada(s): ' + ids + '. Total registado: ' + formatarPreco(data.total) + '. O pagamento ainda não foi efetuado.';
+        feedbackCarrinho('Encomenda criada com sucesso. Estado: Pendente; isto não confirma pagamento.', 'success');
+        await Promise.all([carregarCarrinho(), atualizarBadgeCarrinho()]);
+    } catch (error) { console.error('Falha no checkout:', error); feedbackCarrinho(error.message || 'Não foi possível criar a encomenda. Tente novamente.', 'error'); }
+    finally { checkoutEmCurso = false; if (btn) { btn.disabled = false; btn.textContent = original; } }
+}
 // 7. CHAT E SUPORTE
 function toggleChat() {
     const panel = $('#chat-panel');
