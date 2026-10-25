@@ -551,20 +551,72 @@ async function removerDoCarrinho(itemId) {
 async function finalizarCompra() {
     if (checkoutEmCurso) return;
     if (!currentUser) { abrirAuth('login'); return; }
-    const moradaEl = $('#morada-entrega'); const morada = moradaEl ? moradaEl.value.trim() : '';
-    if (morada.length < 5 || morada.length > 500) { feedbackCarrinho('Introduza uma morada de entrega válida (5 a 500 caracteres).', 'error'); if (moradaEl) moradaEl.focus(); return; }
-    const btn = $('.cart-checkout-btn'); const original = btn ? btn.textContent : 'Criar encomenda';
-    checkoutEmCurso = true; if (btn) { btn.disabled = true; btn.textContent = 'A criar encomenda…'; }
-    feedbackCarrinho('A validar preços e a registar a encomenda no servidor…', 'info');
+    const moradaEl = $('#morada-entrega');
+    const morada = moradaEl ? moradaEl.value.trim() : '';
+    if (morada.length < 5 || morada.length > 500) {
+        feedbackCarrinho('Introduza uma morada de entrega válida (5 a 500 caracteres).', 'error');
+        if (moradaEl) moradaEl.focus();
+        return;
+    }
+    const btn = $('.cart-checkout-btn');
+    const original = btn ? btn.textContent : 'Pagar com Stripe';
+    checkoutEmCurso = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'A verificar pagamento…'; }
+    feedbackCarrinho('A verificar se o pagamento seguro está configurado…', 'info');
     try {
-        const { data, error } = await window.supabaseClient.rpc('fazer_checkout', { morada_entrega: morada }); if (error) throw error;
-        if (!data || data.success !== true) throw new Error('O servidor não confirmou a criação da encomenda.');
-        const orders = Array.isArray(data.encomendas) ? data.encomendas : []; const ids = orders.map(order => '#' + order.encomenda_id).join(', ');
-        const result = $('#checkout-result'); if (result) result.textContent = 'Encomenda(s) criada(s): ' + ids + '. Total registado: ' + formatarPreco(data.total) + '. O pagamento ainda não foi efetuado.';
-        feedbackCarrinho('Encomenda criada com sucesso. Estado: Pendente; isto não confirma pagamento.', 'success');
-        await Promise.all([carregarCarrinho(), atualizarBadgeCarrinho()]);
-    } catch (error) { console.error('Falha no checkout:', error); feedbackCarrinho(error.message || 'Não foi possível criar a encomenda. Tente novamente.', 'error'); }
-    finally { checkoutEmCurso = false; if (btn) { btn.disabled = false; btn.textContent = original; } }
+        const { data: sessionData, error: sessionError } = await window.supabaseClient.auth.getSession();
+        if (sessionError) throw sessionError;
+        const session = sessionData && sessionData.session;
+        if (!session || !session.access_token) throw new Error('A sua sessão expirou. Inicie sessão novamente.');
+
+        const paymentUrl = 'https://ugcovxdztsjuyhjjrfce.supabase.co/functions/v1/create-payment';
+        const preflight = await fetch(paymentUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + session.access_token,
+                'apikey': 'sb_publishable_yp7ad33iJELOdqmZp5Sp6Q_DWj53vym'
+            }
+        });
+        const readiness = await preflight.json().catch(() => ({}));
+        if (!preflight.ok || readiness.configured !== true) {
+            throw new Error(readiness.error || 'O pagamento ainda não está configurado. Nenhuma encomenda foi criada.');
+        }
+
+        if (btn) btn.textContent = 'A reservar stock…';
+        feedbackCarrinho('A validar o stock e a criar a encomenda de forma transacional…', 'info');
+        const { data, error } = await window.supabaseClient.rpc('fazer_checkout', { morada_entrega: morada });
+        if (error) throw error;
+        if (!data || data.success !== true || !Array.isArray(data.encomendas) || !data.encomendas.length) {
+            throw new Error('O servidor não confirmou a criação da encomenda.');
+        }
+        const orderIds = data.encomendas.map(order => Number(order.encomenda_id)).filter(id => Number.isSafeInteger(id) && id > 0);
+        if (!orderIds.length) throw new Error('O servidor devolveu referências de encomenda inválidas.');
+
+        if (btn) btn.textContent = 'A abrir pagamento seguro…';
+        feedbackCarrinho('Stock reservado. A abrir o checkout seguro do Stripe…', 'info');
+        const paymentResponse = await fetch(paymentUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + session.access_token,
+                'apikey': 'sb_publishable_yp7ad33iJELOdqmZp5Sp6Q_DWj53vym',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ encomenda_ids: orderIds })
+        });
+        const payment = await paymentResponse.json().catch(() => ({}));
+        if (!paymentResponse.ok || !payment.url) {
+            throw new Error(payment.error || 'Não foi possível iniciar o pagamento. A encomenda permanece pendente; contacte o suporte antes de repetir.');
+        }
+        const result = $('#checkout-result');
+        if (result) result.textContent = 'Encomenda(s) ' + orderIds.map(id => '#' + id).join(', ') + ' criada(s). Será redirecionado para o Stripe. A encomenda só será marcada como paga após confirmação segura do webhook.';
+        window.location.assign(payment.url);
+    } catch (error) {
+        console.error('Falha no checkout/pagamento:', error);
+        feedbackCarrinho(error.message || 'Não foi possível concluir a compra. Tente novamente ou contacte o suporte.', 'error');
+    } finally {
+        checkoutEmCurso = false;
+        if (btn) { btn.disabled = false; btn.textContent = original; }
+    }
 }
 // 7. CHAT E SUPORTE
 function toggleChat() {
