@@ -618,7 +618,7 @@ async function processarRetornoPayPal() {
     }
 
     const sessionId = params.get('session_id');
-    if (!sessionId || !/^\\d+$/.test(sessionId)) {
+    if (!sessionId || !/^\d+$/.test(sessionId)) {
         feedbackCarrinho('Não foi possível identificar a sessão de pagamento devolvida pelo PayPal.', 'error');
         return;
     }
