@@ -766,10 +766,10 @@ async function adicionarProduto() {
 
 // 9. MÉTRICAS REAIS DO CENTRO DE NEGÓCIO
 async function carregarMetricas() {
-    const kpis = $('.kpi-value');
+    const kpis = $$('.kpi-value');
     const receitaKpi = kpis[2];
     const encomendasKpi = kpis[0];
-    const conversaoKpi = kpis[1];
+    const stockKpi = kpis[1];
     const aviso = $('.competitive-alert p');
     const chart = $('.empty-chart');
     const chartLabel = $('.finance-header .muted');
@@ -777,7 +777,7 @@ async function carregarMetricas() {
     if (!currentUser || !window.supabaseClient) {
         if (aviso) aviso.textContent = 'Inicie sessão para consultar as métricas reais das suas lojas.';
         if (encomendasKpi) encomendasKpi.textContent = '—';
-        if (conversaoKpi) conversaoKpi.textContent = '—';
+        if (stockKpi) stockKpi.textContent = '—';
         if (receitaKpi) receitaKpi.textContent = '—';
         if (chart) chart.textContent = 'Inicie sessão para consultar dados financeiros.';
         return;
@@ -790,7 +790,7 @@ async function carregarMetricas() {
         const ids = (lojas || []).map(loja => Number(loja.id)).filter(id => Number.isSafeInteger(id) && id > 0);
         if (!ids.length) {
             if (encomendasKpi) encomendasKpi.textContent = '0';
-            if (conversaoKpi) conversaoKpi.textContent = '0';
+            if (stockKpi) stockKpi.textContent = '0';
             if (receitaKpi) receitaKpi.textContent = '$0.00';
             if (aviso) aviso.textContent = 'Ainda não tem lojas próprias. Crie uma loja para começar a acompanhar o negócio.';
             if (chart) chart.textContent = 'Ainda não existem encomendas para as suas lojas.';
@@ -809,8 +809,41 @@ async function carregarMetricas() {
         const revenue = paidOrders.reduce((sum, order) => sum + Math.max(0, Number(order.total) || 0), 0);
         const lowStock = (produtos || []).filter(product => Number(product.stock) < 5);
         if (encomendasKpi) encomendasKpi.textContent = String(orders.length);
-        if (conversaoKpi) conversaoKpi.textContent = String(lowStock.length);
-        if (receitaKpi) receitaKpi.textContent = '
+        if (stockKpi) stockKpi.textContent = String(lowStock.length);
+        if (receitaKpi) receitaKpi.textContent = '$' + revenue.toFixed(2);
+        if (aviso) aviso.textContent = lowStock.length
+            ? 'Atenção: ' + lowStock.length + ' produto(s) com stock inferior a 5 unidades. Reveja o inventário.'
+            : 'Dados reais das suas lojas. A receita considera apenas encomendas com estado Pago.';
+        if (chartLabel) chartLabel.textContent = paidOrders.length + ' encomenda(s) paga(s)';
+        if (chart) {
+            chart.textContent = paidOrders.length
+                ? 'Receita confirmada: $' + revenue.toFixed(2) + '. Encomendas pagas: ' + paidOrders.length + '. Encomendas pendentes/canceladas não entram na receita.'
+                : 'Ainda não há encomendas pagas. As encomendas pendentes não são contabilizadas como receita.';
+        }
+        if (inventario) {
+            inventario.replaceChildren();
+            if (!produtos || !produtos.length) {
+                const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'Ainda não existem produtos nas suas lojas.'; inventario.appendChild(p);
+            } else {
+                (produtos || []).slice(0, 30).forEach(product => {
+                    const row = document.createElement('div'); row.className = 'inventory-item';
+                    const info = document.createElement('div'); info.className = 'inv-info';
+                    const name = document.createElement('span'); name.className = 'inv-name'; name.textContent = String(product.nome || 'Produto');
+                    const sku = document.createElement('span'); sku.className = 'inv-sku'; sku.textContent = Number(product.stock) < 5 ? 'Stock baixo' : 'Inventário disponível';
+                    const stock = document.createElement('span'); stock.className = 'inv-stock'; stock.textContent = String(Number(product.stock) || 0) + ' un.';
+                    if (Number(product.stock) < 5) stock.style.color = '#b91c1c';
+                    info.append(name, sku); row.append(info, stock); inventario.appendChild(row);
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Falha ao carregar métricas reais:', error);
+        if (aviso) aviso.textContent = 'Não foi possível consultar as métricas. Verifique a ligação e as permissões.';
+        if (encomendasKpi) encomendasKpi.textContent = '—';
+        if (stockKpi) stockKpi.textContent = '—';
+        if (receitaKpi) receitaKpi.textContent = '—';
+    }
+}
 
 // 10. DRAG & DROP
 function setupGlobalListeners() {
