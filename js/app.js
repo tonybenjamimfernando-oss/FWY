@@ -85,6 +85,7 @@ function renderizarLojasFallback() {
         card.onclick = () => abrirLoja(loja.id, loja.nome);
         gridLojas.appendChild(card);
     });
+    aplicarFiltroLojas();
 }
 
 function criarCartaoLoja(loja) {
@@ -329,48 +330,65 @@ function selecionarTemplate(elemento) {
 
 async function publicarLoja() {
     const btn = $('.btn-publish');
-    if (!btn) return;
-    
-    const textoOriginal = btn.innerHTML;
-    btn.innerHTML = '⏳ A publicar...';
+    const nomeInput = $('#loja-nome');
+    const descricaoInput = $('#loja-descricao');
+    const iconeInput = $('#loja-icone');
+    const feedback = $('#builder-feedback');
+    if (!btn || !nomeInput) return;
+
+    const nome = nomeInput.value.trim();
+    const descricao = descricaoInput ? descricaoInput.value.trim() : '';
+    const icone = iconeInput ? iconeInput.value : '🏪';
+
+    const mostrarFeedback = (mensagem, estado) => {
+        if (!feedback) return;
+        feedback.textContent = mensagem;
+        feedback.dataset.state = estado || '';
+    };
+
+    if (!nome) {
+        mostrarFeedback('Introduza o nome da loja antes de publicar.', 'error');
+        nomeInput.focus();
+        return;
+    }
+    if (nome.length > 120 || descricao.length > 1000) {
+        mostrarFeedback('Verifique os limites: nome até 120 e descrição até 1000 caracteres.', 'error');
+        return;
+    }
+
+    const textoOriginal = btn.textContent;
     btn.disabled = true;
+    btn.textContent = 'A guardar…';
+    mostrarFeedback('A guardar a loja na base de dados de desenvolvimento…', '');
 
     try {
-        const novaLoja = {
-            nome: "Nova Loja FLOWEBUY",
-            descricao: "Criada através do Store Builder",
-            icone: "✨"
-        };
-
         const response = await fetch(`${API_URL}/lojas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(novaLoja)
+            body: JSON.stringify({ nome, descricao, icone })
         });
-
-        if(response.ok) {
-            btn.innerHTML = '✅ Publicada!';
-            setTimeout(async () => {
-                alert("Loja publicada com sucesso!");
-                fecharLoja();
-                await carregarLojas();
-                btn.innerHTML = textoOriginal;
-                btn.disabled = false;
-            }, 1000);
-        } else {
-            throw new Error("Falha");
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.error || 'O servidor recusou a criação da loja.');
         }
+
+        mostrarFeedback('Loja guardada. A atualizar o mercado…', 'success');
+        await carregarLojas();
+        alert('A loja "' + nome + '" foi guardada no ambiente de desenvolvimento.');
+        fecharLoja();
+        nomeInput.value = '';
+        if (descricaoInput) descricaoInput.value = '';
+        if (iconeInput) iconeInput.value = '🏪';
     } catch (error) {
-        // Fallback caso o servidor esteja offline
-        setTimeout(() => {
-            btn.innerHTML = '⚠️ Modo Offline';
-            setTimeout(() => {
-                alert("Servidor offline. A loja foi publicada apenas na sua sessão.");
-                fecharLoja();
-                btn.innerHTML = textoOriginal;
-                btn.disabled = false;
-            }, 1000);
-        }, 500);
+        mostrarFeedback(
+            error.message === 'Failed to fetch'
+                ? 'Não foi possível contactar a API. Confirme se o servidor de desenvolvimento está ligado.'
+                : error.message,
+            'error'
+        );
+    } finally {
+        btn.disabled = false;
+        btn.textContent = textoOriginal;
     }
 }
 
