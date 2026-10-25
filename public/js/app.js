@@ -769,106 +769,63 @@ async function adicionarProduto() {
 // Métricas reais consultadas por loja do utilizador autenticado.
 async function carregarMetricas() {
     const kpis = $$('.kpi-value');
-    const receitaKpi = kpis[2];
-    const encomendasKpi = kpis[0];
-    const stockKpi = kpis[1];
-    const aviso = $('.competitive-alert p');
-    const chart = $('.empty-chart');
-    const chartLabel = $('.finance-header .muted');
-    const inventario = $('.inventory-list');
-
+    const receitaKpi = kpis[2], encomendasKpi = kpis[0], stockKpi = kpis[1];
+    const aviso = $('.competitive-alert p'), chart = $('.empty-chart'), chartLabel = $('.finance-header .muted'), inventario = $('.inventory-list');
     if (!currentUser || !window.supabaseClient) {
-        if (aviso) aviso.textContent = 'Inicie sessão para consultar as métricas reais das suas lojas.';
+        if (aviso) aviso.textContent = 'Inicie sessão para consultar métricas reais.';
         if (encomendasKpi) encomendasKpi.textContent = '—';
         if (stockKpi) stockKpi.textContent = '—';
         if (receitaKpi) receitaKpi.textContent = '—';
-        if (chart) chart.textContent = 'Inicie sessão para consultar dados financeiros.';
         return;
     }
-
-    if (aviso) aviso.textContent = 'A consultar dados reais das suas lojas e encomendas…';
     try {
-        const { data: lojas, error: lojasError } = await window.supabaseClient
-            .from('lojas').select('id,nome').eq('owner_id', currentUser.id);
-        if (lojasError) throw lojasError;
-        const ids = (lojas || []).map(loja => Number(loja.id)).filter(id => Number.isSafeInteger(id) && id > 0);
-
+        const { data: lojas, error: lojaError } = await window.supabaseClient.from('lojas').select('id').eq('owner_id', currentUser.id);
+        if (lojaError) throw lojaError;
+        const ids = (lojas || []).map(x => Number(x.id)).filter(x => Number.isSafeInteger(x) && x > 0);
         if (!ids.length) {
             if (encomendasKpi) encomendasKpi.textContent = '0';
             if (stockKpi) stockKpi.textContent = '0';
             if (receitaKpi) receitaKpi.textContent = 'USD 0.00';
-            if (aviso) aviso.textContent = 'Ainda não tem lojas próprias. Crie uma loja para começar a acompanhar o negócio.';
             if (chart) chart.textContent = 'Ainda não existem encomendas para as suas lojas.';
-            if (chartLabel) chartLabel.textContent = 'Sem encomendas';
             if (inventario) inventario.replaceChildren();
             return;
         }
-
-        const [ordersResult, productsResult] = await Promise.all([
-            window.supabaseClient.from('encomendas').select('id,total,status,loja_id,created_at').in('loja_id', ids),
+        const [o, p] = await Promise.all([
+            window.supabaseClient.from('encomendas').select('id,total,status,loja_id').in('loja_id', ids),
             window.supabaseClient.from('produtos').select('id,nome,stock,loja_id').in('loja_id', ids).order('stock', { ascending: true })
         ]);
-        if (ordersResult.error) throw ordersResult.error;
-        if (productsResult.error) throw productsResult.error;
-
-        const orders = ordersResult.data || [];
-        const products = productsResult.data || [];
-        const paidOrders = orders.filter(order => ['pago', 'paid'].includes(String(order.status || '').toLowerCase()));
-        const revenue = paidOrders.reduce((sum, order) => sum + Math.max(0, Number(order.total) || 0), 0);
-        const lowStock = products.filter(product => Number(product.stock) < 5);
-
+        if (o.error) throw o.error;
+        if (p.error) throw p.error;
+        const orders = o.data || [], products = p.data || [];
+        const paid = orders.filter(x => ['pago','paid'].includes(String(x.status || '').toLowerCase()));
+        const revenue = paid.reduce((sum,x) => sum + Math.max(0,Number(x.total)||0),0);
+        const low = products.filter(x => Number(x.stock) < 5);
         if (encomendasKpi) encomendasKpi.textContent = String(orders.length);
-        if (stockKpi) stockKpi.textContent = String(lowStock.length);
+        if (stockKpi) stockKpi.textContent = String(low.length);
         if (receitaKpi) receitaKpi.textContent = 'USD ' + revenue.toFixed(2);
-
         if (aviso) {
-            if (lowStock.length) {
-                aviso.textContent = 'Atenção: ' + lowStock.length + ' produto(s) com stock inferior a 5 unidades. Reveja o inventário.';
-            } else {
-                aviso.textContent = 'Dados reais das suas lojas. A receita considera apenas encomendas com estado Pago.';
-            }
+            if (low.length) aviso.textContent = 'Atenção: ' + low.length + ' produto(s) com stock baixo.';
+            else aviso.textContent = 'Dados reais das suas lojas; receita calculada apenas com encomendas pagas.';
         }
-        if (chartLabel) chartLabel.textContent = paidOrders.length + ' encomenda(s) paga(s)';
+        if (chartLabel) chartLabel.textContent = String(paid.length) + ' encomenda(s) paga(s)';
         if (chart) {
-            if (paidOrders.length) {
-                chart.textContent = 'Receita registada em USD: ' + revenue.toFixed(2) + '. Encomendas pagas: ' + paidOrders.length + '. Encomendas pendentes ou canceladas não entram na receita.';
-            } else {
-                chart.textContent = 'Ainda não há encomendas pagas. As encomendas pendentes não são contabilizadas como receita.';
-            }
+            if (paid.length) chart.textContent = 'Receita registada em USD: ' + revenue.toFixed(2) + '; encomendas pagas: ' + paid.length + '.';
+            else chart.textContent = 'Ainda não há encomendas pagas. As encomendas pendentes não são receita.';
         }
-
         if (inventario) {
             inventario.replaceChildren();
-            if (!products.length) {
-                const p = document.createElement('p');
-                p.className = 'muted';
-                p.textContent = 'Ainda não existem produtos nas suas lojas.';
-                inventario.appendChild(p);
-            } else {
-                products.slice(0, 30).forEach(product => {
-                    const row = document.createElement('div');
-                    row.className = 'inventory-item';
-                    const info = document.createElement('div');
-                    info.className = 'inv-info';
-                    const name = document.createElement('span');
-                    name.className = 'inv-name';
-                    name.textContent = String(product.nome || 'Produto');
-                    const sku = document.createElement('span');
-                    sku.className = 'inv-sku';
-                    sku.textContent = Number(product.stock) < 5 ? 'Stock baixo' : 'Inventário disponível';
-                    const stock = document.createElement('span');
-                    stock.className = 'inv-stock';
-                    stock.textContent = String(Number(product.stock) || 0) + ' un.';
-                    if (Number(product.stock) < 5) stock.style.color = '#b91c1c';
-                    info.append(name, sku);
-                    row.append(info, stock);
-                    inventario.appendChild(row);
-                });
-            }
+            products.slice(0,30).forEach(x => {
+                const row=document.createElement('div'); row.className='inventory-item';
+                const info=document.createElement('div'); info.className='inv-info';
+                const name=document.createElement('span'); name.className='inv-name'; name.textContent=String(x.nome||'Produto');
+                const label=document.createElement('span'); label.className='inv-sku'; label.textContent=Number(x.stock)<5?'Stock baixo':'Inventário disponível';
+                const stock=document.createElement('span'); stock.className='inv-stock'; stock.textContent=String(Number(x.stock)||0)+' un.';
+                info.append(name,label); row.append(info,stock); inventario.appendChild(row);
+            });
         }
     } catch (error) {
         console.error('Falha ao carregar métricas reais:', error);
-        if (aviso) aviso.textContent = 'Não foi possível consultar as métricas. Verifique a ligação e as permissões.';
+        if (aviso) aviso.textContent = 'Não foi possível consultar as métricas. Verifique as permissões.';
         if (encomendasKpi) encomendasKpi.textContent = '—';
         if (stockKpi) stockKpi.textContent = '—';
         if (receitaKpi) receitaKpi.textContent = '—';
