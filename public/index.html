@@ -8,12 +8,12 @@
 <title>FLOWEBUY — Ecossistema Digital</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <main id="mercado-view">
   <nav class="top-nav-bar">
-    <a class="brand" href="/" aria-label="FLOWEBUY início"><span class="brand-mark">F</span><span>FLOWE<span class="brand-accent">BUY</span></span></a>
+    <a class="brand" href="./" aria-label="FLOWEBUY início"><span class="brand-mark">F</span><span>FLOWE<span class="brand-accent">BUY</span></span></a>
     <label class="search-bar"><span aria-hidden="true">⌕</span><input id="pesquisa" type="search" placeholder="Pesquisar lojas, produtos ou serviços…" aria-label="Pesquisar"></label>
     <div class="location-badge">⌖ <span>Descubra lojas</span></div>
   </nav>
@@ -49,6 +49,6 @@ function irParaCriar(){document.getElementById('loja-view').classList.add('abert
 const pesquisa=document.getElementById('pesquisa');
 pesquisa.addEventListener('input',()=>{const q=pesquisa.value.trim().toLowerCase();document.querySelectorAll('.loja-card').forEach(card=>card.hidden=!card.innerText.toLowerCase().includes(q));});
 </script>
-<script src="/js/app.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
