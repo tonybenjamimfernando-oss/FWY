@@ -57,6 +57,55 @@ app.post('/api/lojas', (req, res) => {
     );
 });
 
+app.post('/api/lojas/:id/produtos', (req, res) => {
+    const lojaId = Number(req.params.id);
+    const body = req.body || {};
+    const nome = typeof body.nome === 'string' ? body.nome.trim() : '';
+    const preco = Number(body.preco);
+    const imagem = typeof body.img === 'string' ? body.img.trim() : '';
+
+    if (!Number.isSafeInteger(lojaId) || lojaId < 1) {
+        return res.status(400).json({ error: 'Identificador de loja inválido.' });
+    }
+    if (!nome || nome.length > 160) {
+        return res.status(400).json({ error: 'O nome do produto é obrigatório e deve ter até 160 caracteres.' });
+    }
+    if (!Number.isFinite(preco) || preco < 0 || preco > 1000000000) {
+        return res.status(400).json({ error: 'Indique um preço válido e não negativo.' });
+    }
+    if (imagem.length > 2000) {
+        return res.status(400).json({ error: 'O endereço da imagem é demasiado longo.' });
+    }
+    if (imagem) {
+        try {
+            const url = new URL(imagem);
+            if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error('Protocolo inválido');
+        } catch (_error) {
+            return res.status(400).json({ error: 'O endereço da imagem deve começar por http:// ou https://.' });
+        }
+    }
+
+    db.get('SELECT id FROM lojas WHERE id = ?', [lojaId], (lookupError, loja) => {
+        if (lookupError) return sendDatabaseError(res, lookupError);
+        if (!loja) return res.status(404).json({ error: 'Loja não encontrada.' });
+
+        db.run(
+            'INSERT INTO produtos (loja_id, nome, preco, img) VALUES (?, ?, ?, ?)',
+            [lojaId, nome, preco, imagem || null],
+            function (error) {
+                if (error) return sendDatabaseError(res, error);
+                return res.status(201).json({
+                    id: this.lastID,
+                    loja_id: lojaId,
+                    nome,
+                    preco,
+                    img: imagem || ''
+                });
+            }
+        );
+    });
+});
+
 app.get('/api/lojas/:id/produtos', (req, res) => {
     const lojaId = Number(req.params.id);
     if (!Number.isSafeInteger(lojaId) || lojaId < 1) {
