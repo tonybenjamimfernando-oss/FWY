@@ -44,11 +44,6 @@
   <button class="support-fab" id="support-btn" onclick="toggleChat()" aria-label="Abrir suporte">✉</button><aside class="chat-panel" id="chat-panel"><div class="chat-header"><h4>Suporte FLOWEBUY</h4><p>Assistente básico</p></div><div class="chat-body" id="chat-body"><div class="msg agent">Olá! Como podemos ajudar?</div></div><div class="chat-input-area"><input id="chat-input" placeholder="Escreva uma mensagem…" onkeypress="handleChatEnter(event)"><button onclick="enviarMensagem()" aria-label="Enviar">➤</button></div></aside>
   <nav class="bottom-nav" aria-label="Navegação da loja"><button class="nav-item ativo" onclick="mudarSala('home',this)"><span class="icon">⌂</span><span>Início</span></button><button class="nav-item" onclick="mudarSala('explorar',this)"><span class="icon">⌕</span><span>Explorar</span></button><button class="nav-item" onclick="mudarSala('social',this)"><span class="icon">◎</span><span>Social</span></button><button class="nav-item" onclick="mudarSala('builder',this)"><span class="icon">✧</span><span>Criar</span></button><button class="nav-item" onclick="mudarSala('perfil',this);carregarMetricas()"><span class="icon">◉</span><span>Negócio</span></button></nav>
 </section>
-<script>
-function irParaCriar(){document.getElementById('loja-view').classList.add('aberta');mudarSala('builder',document.querySelectorAll('.nav-item')[3]);}
-const pesquisa=document.getElementById('pesquisa');
-pesquisa.addEventListener('input',()=>{const q=pesquisa.value.trim().toLowerCase();document.querySelectorAll('.loja-card').forEach(card=>card.hidden=!card.innerText.toLowerCase().includes(q));});
-</script>
 <script src="js/app.js"></script>
 </body>
 </html>
