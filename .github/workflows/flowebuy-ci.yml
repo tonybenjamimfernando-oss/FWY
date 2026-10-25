@@ -1,0 +1,47 @@
+name: FLOWEBUY CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate-and-smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package.json
+      - name: Install server dependencies
+        working-directory: server
+        run: npm install --no-audit --no-fund
+      - name: Validate JavaScript syntax
+        run: |
+          node --check server/server.js
+          node --check server/Database.js
+          node --check public/js/app.js
+      - name: Start server and verify API
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd server
+          PORT=3131 node server.js > /tmp/flowebuy-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --silent --fail http://127.0.0.1:3131/api/lojas > /tmp/flowebuy-stores.json; then
+              break
+            fi
+            sleep 1
+          done
+          test -s /tmp/flowebuy-stores.json
+          node -e "const fs=require('fs'); const rows=JSON.parse(fs.readFileSync('/tmp/flowebuy-stores.json','utf8')); if(!Array.isArray(rows)||rows.length<1) process.exit(1); console.log('API OK: '+rows.length+' lojas encontradas')"
+          curl --silent --show-error --fail http://127.0.0.1:3131/ | grep -q 'FLOWEBUY'
+          echo 'Smoke test concluído.'
