@@ -772,7 +772,6 @@ function getDragAfterElement(container, y) {
             return closest;
         }
     }, { offset: Number.NEGATIVE_INFINITY }).element;
-} + n.toFixed(2) : 'Preço indisponível';
 }
 async function adicionarAoCarrinho(produtoId) {
     if (!currentUser) {
