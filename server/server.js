@@ -1,70 +1,121 @@
 const express = require('express');
 const cors = require('cors');
-const bodyParser = require('body-parser');
-const db = require('./Database');
 const path = require('path');
+const db = require('./Database');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
+const publicDirectory = path.join(__dirname, '../public');
 
+app.disable('x-powered-by');
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json({ limit: '100kb' }));
+app.use(express.static(publicDirectory));
 
-// Servir os ficheiros estáticos da pasta public
-app.use(express.static(path.join(__dirname, '../public')));
+function sendDatabaseError(res, error) {
+    console.error('Erro na base de dados:', error.message);
+    return res.status(500).json({ error: 'Não foi possível concluir a operação.' });
+}
 
-// --- API ROUTES ---
-app.get('/api/lojas', (req, res) => {
-    db.all("SELECT * FROM lojas", [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+app.get('/api/health', (_req, res) => {
+    res.json({ status: 'ok', service: 'flowebuy-api' });
+});
+
+app.get('/api/lojas', (_req, res) => {
+    db.all('SELECT * FROM lojas ORDER BY id DESC', [], (error, rows) => {
+        if (error) return sendDatabaseError(res, error);
         res.json(rows);
     });
 });
 
 app.post('/api/lojas', (req, res) => {
-    const { nome, descricao, icone } = req.body;
-    if (!nome) return res.status(400).json({ error: "Nome obrigatório." });
+    const body = req.body || {};
+    const nome = typeof body.nome === 'string' ? body.nome.trim() : '';
+    const descricao = typeof body.descricao === 'string' ? body.descricao.trim() : '';
+    const icone = typeof body.icone === 'string' ? body.icone.trim() : '🏪';
 
-    db.run(`INSERT INTO lojas (nome, descricao, icone) VALUES (?, ?, ?)`,
-           [nome, descricao, icone || '🏪'], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ id: this.lastID, nome, descricao, icone });
-    });
+    if (!nome || nome.length > 120) {
+        return res.status(400).json({ error: 'O nome da loja é obrigatório e deve ter até 120 caracteres.' });
+    }
+    if (descricao.length > 1000) {
+        return res.status(400).json({ error: 'A descrição deve ter até 1000 caracteres.' });
+    }
+
+    db.run(
+        'INSERT INTO lojas (nome, descricao, icone) VALUES (?, ?, ?)',
+        [nome, descricao, icone || '🏪'],
+        function (error) {
+            if (error) return sendDatabaseError(res, error);
+            return res.status(201).json({
+                id: this.lastID,
+                nome,
+                descricao,
+                icone: icone || '🏪',
+                status: 'Live'
+            });
+        }
+    );
 });
 
 app.get('/api/lojas/:id/produtos', (req, res) => {
-    db.all("SELECT * FROM produtos WHERE loja_id = ?", [req.params.id], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+    const lojaId = Number(req.params.id);
+    if (!Number.isSafeInteger(lojaId) || lojaId < 1) {
+        return res.status(400).json({ error: 'Identificador de loja inválido.' });
+    }
+
+    db.all('SELECT * FROM produtos WHERE loja_id = ? ORDER BY id DESC', [lojaId], (error, rows) => {
+        if (error) return sendDatabaseError(res, error);
         res.json(rows);
     });
 });
 
-app.get('/api/metricas', (req, res) => {
-    db.all("SELECT tipo, SUM(valor) as total FROM metricas GROUP BY tipo", [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+app.get('/api/metricas', (_req, res) => {
+    db.all('SELECT tipo, SUM(valor) AS total FROM metricas GROUP BY tipo', [], (error, rows) => {
+        if (error) return sendDatabaseError(res, error);
         res.json(rows);
     });
 });
 
 app.post('/api/chat', (req, res) => {
-    const { mensagem } = req.body || {};
-    if (typeof mensagem !== 'string' || !mensagem.trim()) {
-        return res.status(400).json({ error: "Mensagem obrigatória." });
+    const mensagem = req.body && typeof req.body.mensagem === 'string'
+        ? req.body.mensagem.trim()
+        : '';
+
+    if (!mensagem || mensagem.length > 4000) {
+        return res.status(400).json({ error: 'A mensagem é obrigatória e deve ter até 4000 caracteres.' });
     }
 
-    // Simulação de resposta (aqui pode plugar a OpenAI API)
-    setTimeout(() => {
-        let resposta = "Recebido! Um agente responderá em breve.";
-        if (mensagem.toLowerCase().includes("preço")) resposta = "Os nossos preços estão na aba Home.";
-        res.json({ resposta });
-    }, 1000);
+    // Resposta provisória: ainda não é atendimento humano nem IA integrada.
+    const resposta = mensagem.toLocaleLowerCase().includes('preço')
+        ? 'Consulte os preços apresentados na loja. O suporte real ainda será integrado.'
+        : 'A sua mensagem foi recebida neste ambiente de desenvolvimento. O atendimento real ainda será integrado.';
+
+    return res.json({ resposta, mode: 'development-demo' });
 });
 
-// Catch-all para SPA (Serve o index.html para qualquer rota que não seja API)
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/index.html'));
+app.use('/api', (_req, res) => {
+    res.status(404).json({ error: 'Endpoint da API não encontrado.' });
 });
 
-app.listen(PORT, () => {
-    console.log(`Servidor FLOWEBUY em http://localhost:${PORT}`);
+app.get('*', (_req, res) => {
+    res.sendFile(path.join(publicDirectory, 'index.html'));
 });
+
+app.use((error, _req, res, _next) => {
+    if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+        return res.status(400).json({ error: 'O corpo do pedido contém JSON inválido.' });
+    }
+    console.error('Erro inesperado:', error);
+    return res.status(500).json({ error: 'Ocorreu um erro interno.' });
+});
+
+db.ready
+    .then(() => {
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`FLOWEBUY em desenvolvimento: http://localhost:${PORT}`);
+        });
+    })
+    .catch((error) => {
+        console.error('Não foi possível inicializar a base de dados:', error);
+        db.close(() => process.exit(1));
+    });
