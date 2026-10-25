@@ -71,6 +71,7 @@ jobs:
             > /tmp/flowebuy-new-store.json
           STORE_ID=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/flowebuy-new-store.json','utf8')).id")
           test -n "$STORE_ID"
+          export STORE_ID
 
           curl --silent --show-error --fail -X POST "http://127.0.0.1:3131/api/lojas/$STORE_ID/produtos" \
             -H 'Content-Type: application/json' \
