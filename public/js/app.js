@@ -28,7 +28,7 @@ function aplicarFiltroLojas() {
     const pesquisa = $('#pesquisa');
     const termo = pesquisa ? pesquisa.value.trim().toLocaleLowerCase() : '';
 
-    $('#grid-lojas .loja-card').forEach(card => {
+    document.querySelectorAll('#grid-lojas .loja-card').forEach(card => {
         card.hidden = !card.innerText.toLocaleLowerCase().includes(termo);
     });
 }
