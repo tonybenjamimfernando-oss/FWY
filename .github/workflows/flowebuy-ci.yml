@@ -64,5 +64,21 @@ jobs:
 
           curl --silent --show-error --fail http://127.0.0.1:3131/api/lojas > /tmp/flowebuy-stores.json
           node -e "const fs=require('fs'); const rows=JSON.parse(fs.readFileSync('/tmp/flowebuy-stores.json','utf8')); if(!Array.isArray(rows)||rows.length<1) process.exit(1); console.log('API OK: '+rows.length+' lojas encontradas')"
+
+          curl --silent --show-error --fail -X POST http://127.0.0.1:3131/api/lojas \
+            -H 'Content-Type: application/json' \
+            -d '{"nome":"Loja de teste CI","descricao":"Criada no teste automatizado","icone":"🧪"}' \
+            > /tmp/flowebuy-new-store.json
+          STORE_ID=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/flowebuy-new-store.json','utf8')).id")
+          test -n "$STORE_ID"
+
+          curl --silent --show-error --fail -X POST "http://127.0.0.1:3131/api/lojas/$STORE_ID/produtos" \
+            -H 'Content-Type: application/json' \
+            -d '{"nome":"Produto de teste","preco":12.5,"img":"https://example.com/product.png"}' \
+            > /tmp/flowebuy-new-product.json
+          node -e "const p=JSON.parse(require('fs').readFileSync('/tmp/flowebuy-new-product.json','utf8')); if(p.loja_id!==Number(process.env.STORE_ID)||p.nome!=='Produto de teste'||p.preco!==12.5) process.exit(1); console.log('CRUD de produto: OK')" 
+          INVALID_STATUS=$(curl --silent --output /tmp/flowebuy-invalid.json --write-out '%{http_code}' -X POST "http://127.0.0.1:3131/api/lojas/$STORE_ID/produtos" -H 'Content-Type: application/json' -d '{"nome":"","preco":-1}')
+          test "$INVALID_STATUS" = "400"
+
           curl --silent --show-error --fail http://127.0.0.1:3131/ | grep -q 'FLOWEBUY'
-          echo 'Smoke test concluído.'
+          echo 'Smoke tests concluídos.'
