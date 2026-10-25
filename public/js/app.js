@@ -665,6 +665,7 @@ async function adicionarProduto() {
     const storeSelect = $('#produto-loja');
     const nomeInput = $('#novo-produto-nome');
     const precoInput = $('#novo-produto-preco');
+    const stockInput = $('#novo-produto-stock');
     const imagemInput = $('#novo-produto-imagem');
     const feedback = $('#product-feedback');
     const btn = $('.product-form .btn-publish');
@@ -672,6 +673,7 @@ async function adicionarProduto() {
     const lojaId = Number(storeSelect.value);
     const nome = nomeInput.value.trim();
     const preco = Number(precoInput.value);
+    const stock = stockInput && stockInput.value.trim() !== '' ? Number(stockInput.value) : 0;
     const img = imagemInput ? imagemInput.value.trim() : '';
     const mostrarFeedback = (mensagem, estado) => {
         if (feedback) { feedback.textContent = mensagem; feedback.dataset.state = estado || ''; }
@@ -679,6 +681,7 @@ async function adicionarProduto() {
     if (!Number.isSafeInteger(lojaId) || lojaId < 1) { mostrarFeedback('Selecione uma loja válida.', 'error'); return; }
     if (!nome || nome.length > 160) { mostrarFeedback('Introduza o nome do produto (até 160 caracteres).', 'error'); return; }
     if (precoInput.value.trim() === '' || !Number.isFinite(preco) || preco < 0) { mostrarFeedback('Introduza um preço válido.', 'error'); return; }
+    if (!Number.isSafeInteger(stock) || stock < 0 || stock > 1000000) { mostrarFeedback('Introduza um stock inteiro entre 0 e 1.000.000.', 'error'); return; }
     if (img && !/^https?:\/\//i.test(img)) { mostrarFeedback('A imagem deve usar um endereço HTTP ou HTTPS.', 'error'); return; }
     const textoOriginal = btn.textContent;
     btn.disabled = true;
@@ -692,12 +695,13 @@ async function adicionarProduto() {
         if (lojaError) throw lojaError;
         if (!lojaPropria) throw new Error('Só pode adicionar produtos às suas próprias lojas.');
         const { error } = await window.supabaseClient.from('produtos').insert({
-            loja_id: lojaId, nome, preco, img: img || null, stock: 0
+            loja_id: lojaId, nome, preco, img: img || null, stock
         });
         if (error) throw error;
         mostrarFeedback('Produto guardado com sucesso no Supabase.', 'success');
         nomeInput.value = '';
         precoInput.value = '';
+        if (stockInput) stockInput.value = '0';
         if (imagemInput) imagemInput.value = '';
         await carregarProdutos(lojaId);
     } catch (error) {
@@ -708,22 +712,180 @@ async function adicionarProduto() {
     }
 }
 
-// 9. MÉTRICAS REAIS (FASE 4)
+// 9. MÉTRICAS REAIS DO CENTRO DE NEGÓCIO
 async function carregarMetricas() {
-    const kpiVisitas = $$('.kpi-value')[0];
-    
+    const kpis = $('.kpi-value');
+    const receitaKpi = kpis[2];
+    const encomendasKpi = kpis[0];
+    const conversaoKpi = kpis[1];
+    const aviso = $('.competitive-alert p');
+    const chart = $('.empty-chart');
+    const chartLabel = $('.finance-header .muted');
+    const inventario = $('.inventory-list');
+    if (!currentUser || !window.supabaseClient) {
+        if (aviso) aviso.textContent = 'Inicie sessão para consultar as métricas reais das suas lojas.';
+        if (encomendasKpi) encomendasKpi.textContent = '—';
+        if (conversaoKpi) conversaoKpi.textContent = '—';
+        if (receitaKpi) receitaKpi.textContent = '—';
+        if (chart) chart.textContent = 'Inicie sessão para consultar dados financeiros.';
+        return;
+    }
+    if (aviso) aviso.textContent = 'A consultar dados reais das suas lojas e encomendas…';
     try {
-        const response = await fetch(`${API_URL}/metricas`);
-        if (!response.ok) throw new Error("Sem API");
-        const metricas = await response.json();
-        
-        if (kpiVisitas) {
-            const visitas = metricas.find(m => m.tipo === 'visitas')?.total || 0;
-            kpiVisitas.innerText = visitas;
+        const { data: lojas, error: lojasError } = await window.supabaseClient
+            .from('lojas').select('id,nome').eq('owner_id', currentUser.id);
+        if (lojasError) throw lojasError;
+        const ids = (lojas || []).map(loja => Number(loja.id)).filter(id => Number.isSafeInteger(id) && id > 0);
+        if (!ids.length) {
+            if (encomendasKpi) encomendasKpi.textContent = '0';
+            if (conversaoKpi) conversaoKpi.textContent = '0';
+            if (receitaKpi) receitaKpi.textContent = '$0.00';
+            if (aviso) aviso.textContent = 'Ainda não tem lojas próprias. Crie uma loja para começar a acompanhar o negócio.';
+            if (chart) chart.textContent = 'Ainda não existem encomendas para as suas lojas.';
+            if (chartLabel) chartLabel.textContent = 'Sem encomendas';
+            if (inventario) inventario.replaceChildren();
+            return;
         }
-    } catch(e) {
-        // Fallback: Mostrar aviso de "Sem dados"
-        if (kpiVisitas) kpiVisitas.innerText = '—';
+        const [{ data: encomendas, error: encomendasError }, { data: produtos, error: produtosError }] = await Promise.all([
+            window.supabaseClient.from('encomendas').select('id,total,status,loja_id,created_at').in('loja_id', ids),
+            window.supabaseClient.from('produtos').select('id,nome,stock,loja_id').in('loja_id', ids).order('stock', { ascending: true })
+        ]);
+        if (encomendasError) throw encomendasError;
+        if (produtosError) throw produtosError;
+        const orders = encomendas || [];
+        const paidOrders = orders.filter(order => ['pago','paid'].includes(String(order.status || '').toLowerCase()));
+        const revenue = paidOrders.reduce((sum, order) => sum + Math.max(0, Number(order.total) || 0), 0);
+        const lowStock = (produtos || []).filter(product => Number(product.stock) < 5);
+        if (encomendasKpi) encomendasKpi.textContent = String(orders.length);
+        if (conversaoKpi) conversaoKpi.textContent = String(lowStock.length);
+        if (receitaKpi) receitaKpi.textContent = '
+
+// 10. DRAG & DROP
+function setupGlobalListeners() {
+    const canvas = $('#builder-canvas');
+    if(!canvas) return;
+    
+    let draggedItem = null;
+
+    canvas.addEventListener('dragstart', function(e) {
+        if(e.target.classList.contains('builder-block')) {
+            draggedItem = e.target;
+            setTimeout(() => e.target.style.opacity = '0.5', 0);
+        }
+    });
+
+    canvas.addEventListener('dragend', function() {
+        if(draggedItem) {
+            draggedItem.style.opacity = '1';
+            draggedItem = null;
+        }
+    });
+
+    canvas.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        if(!draggedItem) return;
+        
+        const afterElement = getDragAfterElement(canvas, e.clientY);
+        if (afterElement == null) {
+            canvas.appendChild(draggedItem);
+        } else {
+            canvas.insertBefore(draggedItem, afterElement);
+        }
+    });
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.builder-block:not([style*="opacity: 0.5"])')];
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+ + revenue.toFixed(2);
+        if (aviso) aviso.textContent = lowStock.length
+            ? 'Atenção: ' + lowStock.length + ' produto(s) com stock inferior a 5 unidades. Reveja o inventário.'
+            : 'Dados reais das suas lojas. A receita considera apenas encomendas com estado Pago.';
+        if (chartLabel) chartLabel.textContent = paidOrders.length + ' encomenda(s) paga(s)';
+        if (chart) {
+            chart.textContent = paidOrders.length
+                ? 'Receita confirmada: 
+
+// 10. DRAG & DROP
+function setupGlobalListeners() {
+    const canvas = $('#builder-canvas');
+    if(!canvas) return;
+    
+    let draggedItem = null;
+
+    canvas.addEventListener('dragstart', function(e) {
+        if(e.target.classList.contains('builder-block')) {
+            draggedItem = e.target;
+            setTimeout(() => e.target.style.opacity = '0.5', 0);
+        }
+    });
+
+    canvas.addEventListener('dragend', function() {
+        if(draggedItem) {
+            draggedItem.style.opacity = '1';
+            draggedItem = null;
+        }
+    });
+
+    canvas.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        if(!draggedItem) return;
+        
+        const afterElement = getDragAfterElement(canvas, e.clientY);
+        if (afterElement == null) {
+            canvas.appendChild(draggedItem);
+        } else {
+            canvas.insertBefore(draggedItem, afterElement);
+        }
+    });
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.builder-block:not([style*="opacity: 0.5"])')];
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+ + revenue.toFixed(2) + '. Encomendas pagas: ' + paidOrders.length + '. Encomendas pendentes/canceladas não entram na receita.'
+                : 'Ainda não há encomendas pagas. As encomendas pendentes não são contabilizadas como receita.';
+        }
+        if (inventario) {
+            inventario.replaceChildren();
+            if (!produtos || !produtos.length) {
+                const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'Ainda não existem produtos nas suas lojas.'; inventario.appendChild(p);
+            } else {
+                (produtos || []).slice(0, 30).forEach(product => {
+                    const row = document.createElement('div'); row.className = 'inventory-item';
+                    const info = document.createElement('div'); info.className = 'inv-info';
+                    const name = document.createElement('span'); name.className = 'inv-name'; name.textContent = String(product.nome || 'Produto');
+                    const sku = document.createElement('span'); sku.className = 'inv-sku'; sku.textContent = Number(product.stock) < 5 ? 'Stock baixo' : 'Inventário disponível';
+                    const stock = document.createElement('span'); stock.className = 'inv-stock'; stock.textContent = String(Number(product.stock) || 0) + ' un.';
+                    if (Number(product.stock) < 5) stock.style.color = '#b91c1c';
+                    info.append(name, sku); row.append(info, stock); inventario.appendChild(row);
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Falha ao carregar métricas reais:', error);
+        if (aviso) aviso.textContent = 'Não foi possível consultar as métricas. Verifique a ligação e as permissões.';
+        if (encomendasKpi) encomendasKpi.textContent = '—';
+        if (conversaoKpi) conversaoKpi.textContent = '—';
+        if (receitaKpi) receitaKpi.textContent = '—';
     }
 }
 
