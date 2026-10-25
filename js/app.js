@@ -765,6 +765,7 @@ async function adicionarProduto() {
 }
 
 // 9. MÉTRICAS REAIS DO CENTRO DE NEGÓCIO
+// Métricas reais consultadas por loja do utilizador autenticado.
 async function carregarMetricas() {
     const kpis = $$('.kpi-value');
     const receitaKpi = kpis[2];
