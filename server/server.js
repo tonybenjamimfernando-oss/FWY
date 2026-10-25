@@ -7,14 +7,13 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middlewares
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, '../public'))); // Serve o Front-End
 
-// --- ROTAS DA API ---
+// Servir os ficheiros estáticos da pasta public
+app.use(express.static(path.join(__dirname, '../public')));
 
-// 1. Obter todas as lojas (Fase 1)
+// --- API ROUTES ---
 app.get('/api/lojas', (req, res) => {
     db.all("SELECT * FROM lojas", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -22,19 +21,17 @@ app.get('/api/lojas', (req, res) => {
     });
 });
 
-// 2. Criar nova loja (Fase 6 - Publicação Real)
 app.post('/api/lojas', (req, res) => {
     const { nome, descricao, icone } = req.body;
-    if (!nome) return res.status(400).json({ error: "O nome da loja é obrigatório." });
+    if (!nome) return res.status(400).json({ error: "Nome obrigatório." });
 
-    const sql = `INSERT INTO lojas (nome, descricao, icone) VALUES (?, ?, ?)`;
-    db.run(sql, [nome, descricao, icone || '🏪'], function(err) {
+    db.run(`INSERT INTO lojas (nome, descricao, icone) VALUES (?, ?, ?)`,
+           [nome, descricao, icone || '🏪'], function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({ id: this.lastID, nome, descricao, icone: icone || '🏪' });
+        res.json({ id: this.lastID, nome, descricao, icone });
     });
 });
 
-// 3. Obter produtos de uma loja (Fase 2)
 app.get('/api/lojas/:id/produtos', (req, res) => {
     db.all("SELECT * FROM produtos WHERE loja_id = ?", [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -42,7 +39,6 @@ app.get('/api/lojas/:id/produtos', (req, res) => {
     });
 });
 
-// 4. Obter Métricas do Business Center (Fase 4)
 app.get('/api/metricas', (req, res) => {
     db.all("SELECT tipo, SUM(valor) as total FROM metricas GROUP BY tipo", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -50,26 +46,25 @@ app.get('/api/metricas', (req, res) => {
     });
 });
 
-// 5. Chat (resposta simulada; ainda não integra uma API de IA)
 app.post('/api/chat', (req, res) => {
     const { mensagem } = req.body || {};
     if (typeof mensagem !== 'string' || !mensagem.trim()) {
-        return res.status(400).json({ error: 'A mensagem é obrigatória.' });
+        return res.status(400).json({ error: "Mensagem obrigatória." });
     }
 
-    const texto = mensagem.toLowerCase();
-    let resposta = 'Entendido! Um agente FLOWEBUY entrará em contacto em breve.';
-    if (texto.includes('preço')) resposta = 'Os nossos preços variam por produto. Consulte a aba Home!';
-    else if (texto.includes('entrega')) resposta = 'As condições de entrega dependem da localização e do vendedor. Consulte os detalhes do produto ou da loja.';
-
-    res.json({ resposta });
+    // Simulação de resposta (aqui pode plugar a OpenAI API)
+    setTimeout(() => {
+        let resposta = "Recebido! Um agente responderá em breve.";
+        if (mensagem.toLowerCase().includes("preço")) resposta = "Os nossos preços estão na aba Home.";
+        res.json({ resposta });
+    }, 1000);
 });
 
-// Rota catch-all para o Front-End SPA
+// Catch-all para SPA (Serve o index.html para qualquer rota que não seja API)
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 app.listen(PORT, () => {
-    console.log(`Servidor FLOWEBUY a correr na porta ${PORT}`);
+    console.log(`Servidor FLOWEBUY em http://localhost:${PORT}`);
 });
