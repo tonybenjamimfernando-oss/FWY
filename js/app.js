@@ -143,8 +143,8 @@ async function handleRegister(event) {
             mensagemAuth('register', 'Conta criada e sessão iniciada.', 'success');
             fecharAuth();
         } else {
-            mensagemAuth('register', 'Conta criada. Verifique o seu e-mail para confirmar a conta antes de iniciar sessão.', 'success');
             switchAuthView('register');
+            mensagemAuth('register', 'Conta criada. Verifique o seu e-mail para confirmar a conta antes de iniciar sessão.', 'success');
         }
     } catch (error) {
         mensagemAuth('register', traduzirErroAuth(error), 'error');
@@ -549,7 +549,7 @@ async function publicarLoja() {
     try {
         const { data: { user }, error: authError } = await window.supabaseClient.auth.getUser();
         if (authError) throw authError;
-        if (!user) throw new Error('Inicie sessão na FLOWEBUY antes de publicar uma loja.');
+        if (!user) { abrirAuth('login'); throw new Error('Inicie sessão na FLOWEBUY antes de publicar uma loja.'); }
         const { error } = await window.supabaseClient.from('lojas').insert({
             owner_id: user.id, nome, descricao, icone, status: 'Live'
         });
