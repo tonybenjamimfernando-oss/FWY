@@ -14,13 +14,171 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
 // 2. INICIALIZAÇÃO
+
+/* =========================================
+   AUTENTICAÇÃO SUPABASE — FLOWEBUY
+   ========================================= */
+let currentUser = null;
+let authStateSubscription = null;
+
+function mensagemAuth(tipo, mensagem, estado) {
+    const el = document.getElementById(tipo === 'login' ? 'login-message' : 'register-message');
+    if (!el) return;
+    el.textContent = mensagem || '';
+    if (estado) el.dataset.state = estado; else delete el.dataset.state;
+}
+function traduzirErroAuth(error) {
+    const msg = String(error && error.message || '').toLowerCase();
+    if (msg.includes('invalid login credentials')) return 'E-mail ou palavra-passe incorretos.';
+    if (msg.includes('email not confirmed')) return 'Confirme o seu e-mail antes de iniciar sessão.';
+    if (msg.includes('user already registered')) return 'Este e-mail já tem uma conta. Tente iniciar sessão.';
+    if (msg.includes('password') && (msg.includes('least') || msg.includes('short') || msg.includes('characters'))) return 'A palavra-passe deve ter pelo menos 8 caracteres.';
+    if (msg.includes('rate limit') || msg.includes('too many requests')) return 'Foram feitos demasiados pedidos. Aguarde alguns minutos e tente novamente.';
+    if (msg.includes('network') || msg.includes('fetch')) return 'Não foi possível contactar o serviço. Verifique a ligação à internet.';
+    return 'Não foi possível concluir a operação. Verifique os dados e tente novamente.';
+}
+async function initAuth() {
+    if (!window.supabaseClient) {
+        console.error('Cliente Supabase não inicializado.');
+        return;
+    }
+    try {
+        const { data, error } = await window.supabaseClient.auth.getSession();
+        if (error) throw error;
+        currentUser = data.session ? data.session.user : null;
+        atualizarHeaderAuth();
+    } catch (error) {
+        console.error('Falha ao recuperar a sessão:', error);
+        currentUser = null;
+        atualizarHeaderAuth();
+    }
+    if (authStateSubscription) authStateSubscription.unsubscribe();
+    const { data } = window.supabaseClient.auth.onAuthStateChange((_event, session) => {
+        currentUser = session ? session.user : null;
+        atualizarHeaderAuth();
+    });
+    authStateSubscription = data.subscription;
+}
+function atualizarHeaderAuth() {
+    const nav = document.querySelector('.top-nav-bar');
+    if (!nav) return;
+    nav.querySelectorAll('.nav-auth-btn,.user-profile-badge').forEach(el => el.remove());
+    const button = document.createElement('button');
+    button.type = 'button';
+    if (currentUser) {
+        button.className = 'user-profile-badge';
+        const name = currentUser.user_metadata && currentUser.user_metadata.full_name;
+        button.textContent = '👤 ' + (name || (currentUser.email || 'Conta').split('@')[0]);
+        button.setAttribute('aria-label', 'Conta: terminar sessão');
+        button.onclick = handleLogout;
+    } else {
+        button.className = 'nav-auth-btn';
+        button.textContent = 'Entrar / Registar';
+        button.onclick = abrirAuth;
+    }
+    nav.appendChild(button);
+}
+function abrirAuth(view) {
+    const modal = document.getElementById('auth-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    document.body.classList.add('auth-modal-open');
+    switchAuthView(view || 'login');
+    requestAnimationFrame(() => modal.classList.add('show'));
+    const target = document.getElementById(view === 'register' ? 'reg-name' : 'login-email');
+    if (target) target.focus();
+}
+function fecharAuth() {
+    const modal = document.getElementById('auth-modal');
+    if (!modal) return;
+    modal.classList.remove('show');
+    document.body.classList.remove('auth-modal-open');
+    window.setTimeout(() => { if (!modal.classList.contains('show')) modal.style.display = 'none'; }, 260);
+}
+function switchAuthView(view) {
+    const login = document.getElementById('auth-login-view');
+    const register = document.getElementById('auth-register-view');
+    if (!login || !register) return;
+    login.style.display = view === 'register' ? 'none' : 'block';
+    register.style.display = view === 'register' ? 'block' : 'none';
+    mensagemAuth('login', '');
+    mensagemAuth('register', '');
+}
+async function handleLogin(event) {
+    event.preventDefault();
+    const btn = document.getElementById('login-btn');
+    const email = document.getElementById('login-email').value.trim().toLowerCase();
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) { mensagemAuth('login', 'Preencha o e-mail e a palavra-passe.', 'error'); return; }
+    btn.disabled = true; btn.textContent = 'A entrar…'; mensagemAuth('login', '');
+    try {
+        const { error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        document.getElementById('login-form').reset();
+        mensagemAuth('login', '');
+        fecharAuth();
+    } catch (error) {
+        mensagemAuth('login', traduzirErroAuth(error), 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Entrar';
+    }
+}
+async function handleRegister(event) {
+    event.preventDefault();
+    const btn = document.getElementById('reg-btn');
+    const name = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim().toLowerCase();
+    const password = document.getElementById('reg-password').value;
+    if (!name || name.length > 120) { mensagemAuth('register', 'Introduza um nome válido (máximo 120 caracteres).', 'error'); return; }
+    if (!email || password.length < 8) { mensagemAuth('register', 'Introduza um e-mail válido e uma palavra-passe com pelo menos 8 caracteres.', 'error'); return; }
+    btn.disabled = true; btn.textContent = 'A criar conta…'; mensagemAuth('register', '');
+    try {
+        const { data, error } = await window.supabaseClient.auth.signUp({
+            email, password,
+            options: { data: { full_name: name }, emailRedirectTo: window.location.origin + '/' }
+        });
+        if (error) throw error;
+        document.getElementById('register-form').reset();
+        if (data.session) {
+            mensagemAuth('register', 'Conta criada e sessão iniciada.', 'success');
+            fecharAuth();
+        } else {
+            mensagemAuth('register', 'Conta criada. Verifique o seu e-mail para confirmar a conta antes de iniciar sessão.', 'success');
+            switchAuthView('register');
+        }
+    } catch (error) {
+        mensagemAuth('register', traduzirErroAuth(error), 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Criar conta';
+    }
+}
+async function handleLogout() {
+    if (!currentUser) { abrirAuth('login'); return; }
+    if (!window.confirm('Deseja terminar a sessão?')) return;
+    try {
+        const { error } = await window.supabaseClient.auth.signOut();
+        if (error) throw error;
+    } catch (error) {
+        window.alert(traduzirErroAuth(error));
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+    initAuth();
     carregarLojas();
     setupGlobalListeners();
     setupSearchListener();
     // Atualiza a métrica do carrinho na sala de negócio
     const cartMetric = $('#cart-metric');
     if(cartMetric) cartMetric.innerText = carrinhoCount;
+});
+document.getElementById('login-form')?.addEventListener('submit', handleLogin);
+document.getElementById('register-form')?.addEventListener('submit', handleRegister);
+document.getElementById('auth-modal')?.addEventListener('click', event => {
+    if (event.target.id === 'auth-modal') fecharAuth();
+});
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') fecharAuth();
 });
 
 // Pesquisa de lojas visíveis no mercado (sem depender da API)
