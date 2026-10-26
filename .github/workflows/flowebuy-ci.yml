@@ -35,13 +35,23 @@ jobs:
           PORT=3131 node server.js > /tmp/flowebuy-server.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          API_READY=false
           for attempt in {1..30}; do
             if curl --silent --fail http://127.0.0.1:3131/api/lojas > /tmp/flowebuy-stores.json; then
-              break
+              if node -e "const fs=require('fs'); const rows=JSON.parse(fs.readFileSync('/tmp/flowebuy-stores.json','utf8')); process.exit(Array.isArray(rows)&&rows.length>0?0:1)"; then
+                API_READY=true
+                break
+              fi
             fi
             sleep 1
           done
-          test -s /tmp/flowebuy-stores.json
-          node -e "const fs=require('fs'); const rows=JSON.parse(fs.readFileSync('/tmp/flowebuy-stores.json','utf8')); if(!Array.isArray(rows)||rows.length<1) process.exit(1); console.log('API OK: '+rows.length+' lojas encontradas')"
+          if [ "$API_READY" != true ]; then
+            echo 'A API não devolveu lojas dentro do tempo limite. Logs do servidor:'
+            cat /tmp/flowebuy-server.log
+            echo 'Resposta final da API:'
+            cat /tmp/flowebuy-stores.json 2>/dev/null || true
+            exit 1
+          fi
+          node -e "const fs=require('fs'); const rows=JSON.parse(fs.readFileSync('/tmp/flowebuy-stores.json','utf8')); console.log('API OK: '+rows.length+' lojas encontradas')"
           curl --silent --show-error --fail http://127.0.0.1:3131/ | grep -q 'FLOWEBUY'
           echo 'Smoke test concluído.'
