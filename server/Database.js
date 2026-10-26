@@ -11,55 +11,75 @@ const db = new sqlite3.Database('./flowebuy.db', (err) => {
 });
 
 function criarTabelas() {
-    // Tabela de Lojas
-    db.run(`CREATE TABLE IF NOT EXISTS lojas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT NOT NULL,
-        descricao TEXT,
-        icone TEXT,
-        status TEXT DEFAULT 'Live',
-        data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+    // As operações são enfileiradas para garantir que as tabelas existam
+    // antes da consulta e da inserção dos dados iniciais.
+    db.serialize(() => {
+        // Tabela de Lojas
+        db.run(`CREATE TABLE IF NOT EXISTS lojas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            descricao TEXT,
+            icone TEXT,
+            status TEXT DEFAULT 'Live',
+            data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    // Tabela de Produtos
-    db.run(`CREATE TABLE IF NOT EXISTS produtos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        loja_id INTEGER,
-        nome TEXT NOT NULL,
-        preco REAL NOT NULL,
-        img TEXT,
-        FOREIGN KEY(loja_id) REFERENCES lojas(id)
-    )`);
+        // Tabela de Produtos
+        db.run(`CREATE TABLE IF NOT EXISTS produtos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            loja_id INTEGER,
+            nome TEXT NOT NULL,
+            preco REAL NOT NULL,
+            img TEXT,
+            FOREIGN KEY(loja_id) REFERENCES lojas(id)
+        )`);
 
-    // Tabela de Métricas (Para o Business Center)
-    db.run(`CREATE TABLE IF NOT EXISTS metricas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tipo TEXT,
-        valor REAL,
-        data_registo DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        // Tabela de Métricas (Para o Business Center)
+        db.run(`CREATE TABLE IF NOT EXISTS metricas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tipo TEXT,
+            valor REAL,
+            data_registo DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    // Tabela do Carrinho
-    db.run(`CREATE TABLE IF NOT EXISTS carrinho (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        produto_id INTEGER,
-        quantidade INTEGER DEFAULT 1,
-        FOREIGN KEY(produto_id) REFERENCES produtos(id)
-    )`);
-    
-    // Inserir dados iniciais (apenas se estiver vazio)
-    db.get("SELECT count(*) as count FROM lojas", (err, row) => {
-        if (row.count === 0) {
-            const lojasIniciais = [
-                ['Lumière Skincare', 'Produtos orgânicos e veganos.', '🧴'],
-                ['TechNova Store', 'Gadgets de última geração.', '📱'],
-                ['Velocity Run', 'Calçado desportivo.', '👟'],
-                ['Beefy Premium', 'Carnes selecionadas.', '🥩']
-            ];
-            lojasIniciais.forEach(loja => {
-                db.run(`INSERT INTO lojas (nome, descricao, icone) VALUES (?, ?, ?)`, loja);
-            });
-        }
+        // Tabela do Carrinho
+        db.run(`CREATE TABLE IF NOT EXISTS carrinho (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            produto_id INTEGER,
+            quantidade INTEGER DEFAULT 1,
+            FOREIGN KEY(produto_id) REFERENCES produtos(id)
+        )`);
+
+        // Inserir dados iniciais (apenas se estiver vazio)
+        db.get('SELECT count(*) AS count FROM lojas', (err, row) => {
+            if (err) {
+                console.error('Erro ao verificar lojas iniciais:', err.message);
+                return;
+            }
+            if (!row) {
+                console.error('Não foi possível verificar as lojas iniciais.');
+                return;
+            }
+            if (row.count === 0) {
+                const lojasIniciais = [
+                    ['Lumière Skincare', 'Produtos orgânicos e veganos.', '🧴'],
+                    ['TechNova Store', 'Gadgets de última geração.', '📱'],
+                    ['Velocity Run', 'Calçado desportivo.', '👟'],
+                    ['Beefy Premium', 'Carnes selecionadas.', '🥩']
+                ];
+                lojasIniciais.forEach((loja) => {
+                    db.run(
+                        'INSERT INTO lojas (nome, descricao, icone) VALUES (?, ?, ?)',
+                        loja,
+                        (insertErr) => {
+                            if (insertErr) {
+                                console.error('Erro ao inserir loja inicial:', insertErr.message);
+                            }
+                        }
+                    );
+                });
+            }
+        });
     });
 }
 
