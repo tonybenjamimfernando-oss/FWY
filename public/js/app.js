@@ -548,9 +548,25 @@ async function removerDoCarrinho(itemId) {
     try { const { error } = await window.supabaseClient.from('carrinho').delete().eq('id', itemId); if (error) throw error; await Promise.all([carregarCarrinho(), atualizarBadgeCarrinho()]); }
     catch (error) { console.error('Falha ao remover item:', error); feedbackCarrinho(error.message || 'Não foi possível remover o produto.', 'error'); }
 }
+// =======================================================
+// DETEÇÃO DE URL (GitHub Pages /FWY/)
+// =======================================================
+function getBaseUrl() {
+    try {
+        const origin = window.location.origin;
+        if (window.location.hostname === 'tonybenjamimfernando-oss.github.io') {
+            return `${origin}/FWY`;
+        }
+        return origin;
+    } catch (e) {
+        return window.location.origin;
+    }
+}
+
 async function finalizarCompra() {
     if (checkoutEmCurso) return;
     if (!currentUser) { abrirAuth('login'); return; }
+
     const moradaEl = $('#morada-entrega');
     const morada = moradaEl ? moradaEl.value.trim() : '';
     if (morada.length < 5 || morada.length > 500) {
@@ -558,66 +574,109 @@ async function finalizarCompra() {
         if (moradaEl) moradaEl.focus();
         return;
     }
+
     const btn = $('.cart-checkout-btn');
-    const original = btn ? btn.textContent : 'Pagar com Stripe';
+    const original = btn ? btn.textContent : 'Pagar com PayPal';
     checkoutEmCurso = true;
-    if (btn) { btn.disabled = true; btn.textContent = 'A verificar pagamento…'; }
-    feedbackCarrinho('A verificar se o pagamento seguro está configurado…', 'info');
+    if (btn) { btn.disabled = true; btn.textContent = 'A preparar pagamento…'; }
+    feedbackCarrinho('A validar o carrinho e a preparar o pagamento seguro PayPal…', 'info');
+
     try {
-        const { data: sessionData, error: sessionError } = await window.supabaseClient.auth.getSession();
-        if (sessionError) throw sessionError;
-        const session = sessionData && sessionData.session;
-        if (!session || !session.access_token) throw new Error('A sua sessão expirou. Inicie sessão novamente.');
+        const { data: authData, error: authError } = await window.supabaseClient.auth.getSession();
+        if (authError) throw authError;
+        const authSession = authData && authData.session;
+        if (!authSession || !authSession.access_token) throw new Error('A sua sessão expirou. Inicie sessão novamente.');
 
-        const paymentUrl = 'https://ugcovxdztsjuyhjjrfce.supabase.co/functions/v1/create-payment';
-        const preflight = await fetch(paymentUrl, {
-            method: 'GET',
-            headers: {
-                'Authorization': 'Bearer ' + session.access_token,
-                'apikey': 'sb_publishable_yp7ad33iJELOdqmZp5Sp6Q_DWj53vym'
-            }
+        const { data: checkout, error: checkoutError } = await window.supabaseClient.rpc('fazer_checkout', {
+            morada_entrega: morada,
+            p_idempotency_key: crypto.randomUUID()
         });
-        const readiness = await preflight.json().catch(() => ({}));
-        if (!preflight.ok || readiness.configured !== true) {
-            throw new Error(readiness.error || 'O pagamento ainda não está configurado. Nenhuma encomenda foi criada.');
+        if (checkoutError) throw checkoutError;
+        if (!checkout || checkout.success !== true || !checkout.session_id) {
+            throw new Error('O servidor não confirmou a criação da sessão de checkout.');
         }
 
-        if (btn) btn.textContent = 'A reservar stock…';
-        feedbackCarrinho('A validar o stock e a criar a encomenda de forma transacional…', 'info');
-        const { data, error } = await window.supabaseClient.rpc('fazer_checkout', { morada_entrega: morada });
-        if (error) throw error;
-        if (!data || data.success !== true || !Array.isArray(data.encomendas) || !data.encomendas.length) {
-            throw new Error('O servidor não confirmou a criação da encomenda.');
-        }
-        const orderIds = data.encomendas.map(order => Number(order.encomenda_id)).filter(id => Number.isSafeInteger(id) && id > 0);
-        if (!orderIds.length) throw new Error('O servidor devolveu referências de encomenda inválidas.');
-
-        if (btn) btn.textContent = 'A abrir pagamento seguro…';
-        feedbackCarrinho('Stock reservado. A abrir o checkout seguro do Stripe…', 'info');
-        const paymentResponse = await fetch(paymentUrl, {
+        if (btn) btn.textContent = 'A abrir PayPal…';
+        const baseUrl = getBaseUrl();
+        const response = await fetch('https://ugcovxdztsjuyhjjrfce.supabase.co/functions/v1/paypal-checkout', {
             method: 'POST',
             headers: {
-                'Authorization': 'Bearer ' + session.access_token,
+                'Authorization': 'Bearer ' + authSession.access_token,
                 'apikey': 'sb_publishable_yp7ad33iJELOdqmZp5Sp6Q_DWj53vym',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ encomenda_ids: orderIds })
+            body: JSON.stringify({
+                session_id: checkout.session_id,
+                return_url: `${baseUrl}/?paypal=return&session_id=${checkout.session_id}`,
+                cancel_url: `${baseUrl}/?paypal=cancel`
+            })
         });
-        const payment = await paymentResponse.json().catch(() => ({}));
-        if (!paymentResponse.ok || !payment.url) {
-            throw new Error(payment.error || 'Não foi possível iniciar o pagamento. A encomenda permanece pendente; contacte o suporte antes de repetir.');
+        const payment = await response.json().catch(() => ({}));
+        if (!response.ok || !payment.url) {
+            throw new Error(payment.error || 'Não foi possível iniciar o pagamento PayPal. A sessão poderá permanecer pendente; contacte o suporte antes de repetir a compra.');
         }
-        const result = $('#checkout-result');
-        if (result) result.textContent = 'Encomenda(s) ' + orderIds.map(id => '#' + id).join(', ') + ' criada(s). Será redirecionado para o Stripe. A encomenda só será marcada como paga após confirmação segura do webhook.';
+        feedbackCarrinho('Sessão #' + checkout.session_id + ' preparada. A redirecionar para o PayPal…', 'info');
         window.location.assign(payment.url);
     } catch (error) {
-        console.error('Falha no checkout/pagamento:', error);
+        console.error('Falha no checkout PayPal:', error);
         feedbackCarrinho(error.message || 'Não foi possível concluir a compra. Tente novamente ou contacte o suporte.', 'error');
     } finally {
         checkoutEmCurso = false;
         if (btn) { btn.disabled = false; btn.textContent = original; }
     }
 }
+
+async function processarRetornoPayPal() {
+    const params = new URLSearchParams(window.location.search);
+    const estado = params.get('paypal');
+    if (!['return', 'cancel'].includes(estado)) return;
+
+    if (estado === 'cancel') {
+        feedbackCarrinho('O pagamento foi cancelado no PayPal. A sessão poderá expirar automaticamente; verifique o estado antes de tentar novamente.', 'error');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+    }
+
+    const sessionId = params.get('session_id');
+    if (!sessionId || !/^\d+$/.test(sessionId)) {
+        feedbackCarrinho('Não foi possível identificar a sessão de pagamento devolvida pelo PayPal.', 'error');
+        return;
+    }
+
+    try {
+        const { data: authData, error: authError } = await window.supabaseClient.auth.getSession();
+        if (authError) throw authError;
+        const authSession = authData && authData.session;
+        if (!authSession || !authSession.access_token) {
+            feedbackCarrinho('O pagamento ainda precisa de ser confirmado. Inicie sessão e consulte as suas encomendas.', 'error');
+            return;
+        }
+        const response = await fetch('https://ugcovxdztsjuyhjjrfce.supabase.co/functions/v1/paypal-capture', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + authSession.access_token,
+                'apikey': 'sb_publishable_yp7ad33iJELOdqmZp5Sp6Q_DWj53vym',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ session_id: Number(sessionId) })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.success !== true) throw new Error(result.error || 'O PayPal ainda não confirmou a captura. Aguarde a confirmação automática antes de repetir o pagamento.');
+        feedbackCarrinho('Pagamento confirmado pelo PayPal. As encomendas desta sessão foram atualizadas.', 'success');
+        const resultEl = $('#checkout-result');
+        if (resultEl) resultEl.textContent = 'Pagamento da sessão #' + sessionId + ' confirmado. As encomendas das lojas incluídas foram atualizadas.';
+        await atualizarBadgeCarrinho();
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } catch (error) {
+        console.error('Falha ao confirmar retorno PayPal:', error);
+        feedbackCarrinho(error.message || 'Não foi possível confirmar o pagamento agora. Não repita o pagamento; aguarde o webhook ou contacte o suporte.', 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    processarRetornoPayPal();
+});
+
 // 7. CHAT E SUPORTE
 function toggleChat() {
     const panel = $('#chat-panel');
