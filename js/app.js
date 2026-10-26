@@ -548,6 +548,21 @@ async function removerDoCarrinho(itemId) {
     try { const { error } = await window.supabaseClient.from('carrinho').delete().eq('id', itemId); if (error) throw error; await Promise.all([carregarCarrinho(), atualizarBadgeCarrinho()]); }
     catch (error) { console.error('Falha ao remover item:', error); feedbackCarrinho(error.message || 'Não foi possível remover o produto.', 'error'); }
 }
+// =======================================================
+// DETEÇÃO DE URL (GitHub Pages /FWY/)
+// =======================================================
+function getBaseUrl() {
+    try {
+        const origin = window.location.origin;
+        if (window.location.hostname === 'tonybenjamimfernando-oss.github.io') {
+            return `${origin}/FWY`;
+        }
+        return origin;
+    } catch (e) {
+        return window.location.origin;
+    }
+}
+
 async function finalizarCompra() {
     if (checkoutEmCurso) return;
     if (!currentUser) { abrirAuth('login'); return; }
@@ -589,7 +604,12 @@ async function finalizarCompra() {
                 'apikey': 'sb_publishable_yp7ad33iJELOdqmZp5Sp6Q_DWj53vym',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ session_id: checkout.session_id })
+            const baseUrl = getBaseUrl();
+            body: JSON.stringify({
+                session_id: checkout.session_id,
+                return_url: `${baseUrl}/?paypal=return&session_id=${checkout.session_id}`,
+                cancel_url: `${baseUrl}/?paypal=cancel`
+            })
         });
         const payment = await response.json().catch(() => ({}));
         if (!response.ok || !payment.url) {
