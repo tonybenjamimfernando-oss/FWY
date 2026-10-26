@@ -162,6 +162,14 @@ async function carregarProdutos(lojaId) {
     const listaProdutos = $('#lista-produtos');
     if (!listaProdutos) return;
 
+    if (!API_URL) {
+        renderizarProdutos([
+            { id: 1, nome: 'Cica Recovery Cream', preco: 28.00, img: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=400&q=80' },
+            { id: 2, nome: 'Niacinamide Serum', preco: 32.00, img: 'https://images.unsplash.com/photo-1620916297397-a4a5402a3c6c?auto=format&fit=crop&w=400&q=80' }
+        ]);
+        return;
+    }
+
     try {
         const response = await fetch(`${API_URL}/lojas/${lojaId}/produtos`);
         if (!response.ok) throw new Error("Erro na rede");
@@ -269,6 +277,7 @@ async function enviarMensagem() {
     body.scrollTop = body.scrollHeight;
 
     try {
+        if (!API_URL) throw new Error('Chat de demonstração sem backend configurado');
         const response = await fetch(`${API_URL}/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -311,6 +320,7 @@ async function publicarLoja() {
     btn.disabled = true;
 
     try {
+        if (!API_URL) throw new Error('Publicação real requer backend configurado');
         const novaLoja = {
             nome: "Nova Loja FLOWEBUY",
             descricao: "Criada através do Store Builder",
@@ -354,6 +364,7 @@ async function carregarMetricas() {
     const kpiVisitas = $$('.kpi-value')[0];
     
     try {
+        if (!API_URL) throw new Error('Métricas indisponíveis no modo estático');
         const response = await fetch(`${API_URL}/metricas`);
         if (!response.ok) throw new Error("Sem API");
         const metricas = await response.json();
