@@ -18,6 +18,14 @@
 @media(max-width:420px){.location-badge span{display:none}.animated-header{padding:28px 20px 20px;border-radius:22px}.header-text h1{letter-spacing:-1.5px}.header-cta{flex-direction:column}.header-cta button{width:100%}.grid-lojas{grid-template-columns:1fr}.loja-card{display:grid;grid-template-columns:auto 1fr;gap:12px}.loja-card-header{grid-row:span 2;flex-direction:column;align-items:flex-start}.loja-card-footer{grid-column:1/-1}.site-footer{align-items:flex-start;flex-direction:column}.app-content{padding:16px 14px 100px}.app-header{padding:0 12px}.app-header h2{font-size:.88rem}.dashboard-grid{gap:8px}.kpi-card{padding:12px}.kpi-value{font-size:1.1rem}.wholesale-banner{flex-direction:column}.wholesale-img{width:100%;height:130px}.bottom-nav{padding-left:2px;padding-right:2px}.nav-item{padding:5px 6px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
+
+/* Correção mobile: toque, foco e espaço antes do rodapé */
+button,a,input,textarea,.loja-card,.nav-item,[role="button"]{-webkit-tap-highlight-color:transparent}
+.loja-card:focus:not(:focus-visible),.nav-item:focus:not(:focus-visible),[role="button"]:focus:not(:focus-visible){outline:none!important;box-shadow:0 8px 24px #10243a07}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,.loja-card:focus-visible,.nav-item:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--primary,#1769aa);outline-offset:3px}
+.loja-card:active{transform:scale(.99);background-color:#f0f9ff;transition:transform .1s ease}
+#mercado-view{padding-bottom:80px}
+.site-footer{position:relative;z-index:1;background:var(--bg-main,#f5f7fb)}
 </style>
 </head>
 <body>
