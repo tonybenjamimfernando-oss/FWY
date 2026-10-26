@@ -4,8 +4,11 @@
 
 // 1. CONFIGURAÇÃO DA API (Deteta Ambiente)
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const API_URL = isLocalhost ? 'http://localhost:3000/api' : '/api'; 
-// Nota: Se hospedar no Vercel/Render, o '/api' será relativo ao domínio.
+const isStaticHosting = window.location.hostname.endsWith('github.io') || window.location.hostname.endsWith('wordpress.com');
+// Defina window.FLOWEBUY_API_URL antes deste ficheiro para ligar um backend externo.
+// GitHub Pages e WordPress.com não executam este servidor Express; nesses ambientes
+// a aplicação usa o modo de demonstração sem tentar chamar uma rota /api inexistente.
+const API_URL = window.FLOWEBUY_API_URL || (isLocalhost ? 'http://localhost:3000/api' : (isStaticHosting ? null : '/api'));
 
 let carrinhoCount = 0;
 
@@ -44,6 +47,11 @@ function setupSearchListener() {
 async function carregarLojas() {
     const gridLojas = $('#grid-lojas');
     if (!gridLojas) return;
+
+    if (!API_URL) {
+        renderizarLojasFallback();
+        return;
+    }
 
     try {
         const response = await fetch(`${API_URL}/lojas`);
