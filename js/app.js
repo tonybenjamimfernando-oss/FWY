@@ -597,6 +597,7 @@ async function finalizarCompra() {
         }
 
         if (btn) btn.textContent = 'A abrir PayPal…';
+        const baseUrl = getBaseUrl();
         const response = await fetch('https://ugcovxdztsjuyhjjrfce.supabase.co/functions/v1/paypal-checkout', {
             method: 'POST',
             headers: {
@@ -604,7 +605,6 @@ async function finalizarCompra() {
                 'apikey': 'sb_publishable_yp7ad33iJELOdqmZp5Sp6Q_DWj53vym',
                 'Content-Type': 'application/json'
             },
-            const baseUrl = getBaseUrl();
             body: JSON.stringify({
                 session_id: checkout.session_id,
                 return_url: `${baseUrl}/?paypal=return&session_id=${checkout.session_id}`,
