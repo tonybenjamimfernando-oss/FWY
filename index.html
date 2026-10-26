@@ -26,6 +26,34 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .loja-card:active{transform:scale(.99);background-color:#f0f9ff;transition:transform .1s ease}
 #mercado-view{padding-bottom:80px}
 .site-footer{position:relative;z-index:1;background:var(--bg-main,#f5f7fb)}
+
+/* FLOWEBUY visual refresh — deep-blue glass, responsive commerce surfaces */
+:root{--primary:#2b9de8;--secondary:#45dfbd;--ink:#eaf4ff;--muted:#a9bfd5;--line:rgba(168,207,239,.18);--surface:rgba(13,36,62,.76);--shadow:0 22px 60px rgba(0,0,0,.24);--radius:22px}
+html{background:#071626}body{color:#eaf4ff;background:radial-gradient(ellipse at 50% -10%,#163e60 0,transparent 48%),linear-gradient(160deg,#071626,#0b2036 54%,#071625);min-height:100vh}
+.top-nav-bar{max-width:1320px;gap:18px}.brand{color:#f4f9ff}.brand-mark{background:linear-gradient(145deg,#1765a2,#26b6d8);box-shadow:0 0 28px #1689c944}.search-bar,.location-badge{background:rgba(10,30,51,.76);border-color:rgba(161,206,242,.22);color:#c8dced;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}.search-bar input{color:#f4faff}.search-bar input::placeholder{color:#8ca9c2}
+.animated-header{max-width:1264px;border:1px solid rgba(155,210,246,.18);background:radial-gradient(ellipse at 80% 45%,rgba(36,150,211,.24),transparent 37%),linear-gradient(125deg,rgba(5,21,39,.96),rgba(10,47,77,.93) 62%,rgba(11,77,99,.9));box-shadow:0 30px 90px rgba(0,0,0,.3);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.animated-header:before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 25%,rgba(115,203,255,.06) 48%,transparent 72%);transform:translateX(-100%);animation:flowebuyShimmer 9s ease-in-out infinite;pointer-events:none}
+.animated-header:after{width:440px;height:440px;border-color:rgba(122,205,250,.18);box-shadow:0 0 90px rgba(30,149,219,.13),inset 0 0 70px rgba(30,149,219,.08)}
+@keyframes flowebuyShimmer{0%,35%{transform:translateX(-100%)}70%,100%{transform:translateX(100%)}}
+.header-text h1{color:#f3f9ff;letter-spacing:-1.8px}.eyebrow{color:#62e6c6}
+section,.section,.panel,.card,.loja-card,.produto-card,.template-card,.builder-block,.kpi-card,.metric-card,.dashboard-card{border-color:rgba(159,204,237,.17)}
+#mercado-view,#loja-view{color:#eaf4ff}.section-title,.section h2,.section h3,#mercado-view h2,#loja-view h2{color:#edf7ff}
+.loja-card,.produto-card,.template-card,.builder-block,.kpi-card,.metric-card,.dashboard-card{background:linear-gradient(145deg,rgba(19,47,74,.86),rgba(9,29,49,.84));border:1px solid rgba(150,202,239,.17);border-radius:20px;box-shadow:0 14px 38px rgba(0,0,0,.18);color:#eaf4ff;transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+.loja-card:hover,.produto-card:hover,.template-card:hover{transform:translateY(-4px);border-color:rgba(66,194,239,.52);box-shadow:0 20px 42px rgba(0,0,0,.28),0 0 0 1px rgba(48,170,225,.08)}
+.loja-card p,.produto-card p,.muted,.section-subtitle{color:#a9bfd5}
+button,.btn,.btn-primary,.btn-publish{transition:transform .18s ease,filter .18s ease,box-shadow .18s ease}
+button:hover,.btn:hover,.btn-primary:hover,.btn-publish:hover{filter:brightness(1.08)}button:active,.btn:active{transform:scale(.98)}
+.btn-primary,.btn-publish,.cta-primary{background:linear-gradient(110deg,#087bc2,#18a9c6);color:#fff;border:1px solid rgba(144,224,255,.3);box-shadow:0 10px 28px rgba(9,139,199,.22)}
+input,textarea,select{background:rgba(5,22,39,.72);color:#f2f8ff;border-color:rgba(156,203,238,.22)}input::placeholder,textarea::placeholder{color:#8ba8c1}
+#sala-home,#sala-explorar,#sala-social,#sala-builder,#sala-perfil,#sala-produto{color:#eaf4ff}
+#builder-canvas{background:rgba(5,22,39,.56);border:1px dashed rgba(110,191,235,.35);border-radius:20px}
+#chat-panel{background:rgba(7,25,43,.96);border:1px solid rgba(153,207,241,.2);box-shadow:0 25px 70px rgba(0,0,0,.38);color:#edf7ff}
+.bottom-nav{background:rgba(5,20,36,.92);border-top:1px solid rgba(150,205,240,.16);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.nav-item{color:#94aec5}.nav-item.ativo{color:#55d9bf}
+#cart-badge{background:#13b8a0;color:#052336}
+@media(max-width:760px){.top-nav-bar{padding:14px 16px;gap:10px;flex-wrap:wrap}.brand{font-size:1.02rem}.search-bar{order:3;flex-basis:100%;max-width:none}.location-badge{margin-left:auto;padding:9px 10px;font-size:.75rem}.animated-header{margin:8px 12px 0;padding:30px 22px 22px;border-radius:24px}.header-content{grid-template-columns:1fr;min-height:unset;gap:16px}.header-text h1{font-size:clamp(2rem,8vw,3.4rem);line-height:1.03}.animated-header:after{width:260px;height:260px;right:-125px;top:-90px}.loja-card,.produto-card{min-width:0}.bottom-nav{padding-bottom:env(safe-area-inset-bottom)}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
 </style>
 </head>
 <body>
