@@ -10,8 +10,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Servir os ficheiros estáticos da pasta public
-app.use(express.static(path.join(__dirname, '../public')));
+// Servir os ficheiros estáticos a partir da raiz do repositório
+app.use(express.static(path.join(__dirname, '../')));
 
 // --- API ROUTES ---
 app.get('/api/lojas', (req, res) => {
@@ -62,7 +62,7 @@ app.post('/api/chat', (req, res) => {
 
 // Catch-all para SPA (Serve o index.html para qualquer rota que não seja API)
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/index.html'));
+    res.sendFile(path.join(__dirname, '../index.html'));
 });
 
 app.listen(PORT, () => {
