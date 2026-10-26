@@ -1,100 +1,406 @@
-<!doctype html>
-<html lang="pt">
+<!DOCTYPE html>
+<html lang="pt-PT">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#0b2545">
-<meta name="description" content="FLOWEBUY — marketplace para descobrir lojas e criar a sua presença digital.">
-<title>FLOWEBUY — Ecossistema Digital</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FLOWEBUY — Ecossistema Digital</title>
+    
+    <!-- Fontes e Estilos Globais -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- O SEU CSS (Certifique-se que o caminho está correto) -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- Supabase SDK (Inicialização Global) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // ATENÇÃO: Substitua pelas suas chaves reais se necessário
+        const SUPABASE_URL = 'https://ugcovxdztsjuyhjjrfce.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_yp7ad33iJELOdqmZp5Sp6Q_DWj53vym';
+        window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    </script>
 </head>
 <body>
-<main id="mercado-view">
-  <nav class="top-nav-bar">
-    <a class="brand" href="./" aria-label="FLOWEBUY início"><span class="brand-mark">F</span><span>FLOWE<span class="brand-accent">BUY</span></span></a>
-    <label class="search-bar"><span aria-hidden="true">⌕</span><input id="pesquisa" type="search" placeholder="Pesquisar lojas, produtos ou serviços…" aria-label="Pesquisar"></label>
-    <div class="location-badge">⌖ <span>Descubra lojas</span></div>
-  </nav>
-  <header class="animated-header">
-    <div class="header-content">
-      <div class="header-text"><p class="eyebrow">O seu comércio, conectado</p>
-        <h1>Descubra. Crie.<br><span>Venda sem fronteiras.</span></h1>
-        <p>Explore lojas independentes e construa a sua presença comercial num único ecossistema digital.</p>
-        <div class="header-cta"><button class="btn-header-primary" onclick="irParaCriar()">Criar a minha loja <span>↗</span></button><button class="btn-header-secondary" onclick="document.getElementById('grid-lojas').scrollIntoView({behavior:'smooth'})">Explorar o mercado</button></div>
-      </div>
-      <div class="header-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="hero-cube">F<span>W</span></div><div class="float-chip chip-a">✦ Comércio digital</div><div class="float-chip chip-b">↗ Novas oportunidades</div></div>
-    </div>
-    <div class="header-stats"><div class="stat-item"><span class="stat-value">Descobrir</span><span class="stat-label">Marcas e lojas</span></div><div class="stat-item"><span class="stat-value">Construir</span><span class="stat-label">A sua loja online</span></div><div class="stat-item"><span class="stat-value">Expandir</span><span class="stat-label">O seu alcance</span></div></div>
-  </header>
-  <section class="market-section"><div class="section-heading"><div><p class="eyebrow">Explore o ecossistema</p><h2 class="section-title">Lojas em destaque</h2></div><span class="section-note">Descubra algo novo</span></div><div class="grid-lojas" id="grid-lojas" aria-live="polite"><p class="loading-state">A carregar lojas…</p></div></section>
-  <footer class="site-footer"><a class="brand" href="/"><span class="brand-mark">F</span><span>FLOWE<span class="brand-accent">BUY</span></span></a><span>O comércio encontra o seu próximo destino.</span></footer>
-</main>
-<section id="loja-view" aria-label="Área da loja">
-  <header class="app-header"><button class="btn-back" onclick="fecharLoja()">← Mercado</button><h2 id="titulo-loja">A minha loja</h2><button class="cart-icon" onclick="abrirCarrinho()" aria-label="Ver carrinho">🛒 <span class="cart-badge" id="cart-badge">0</span></button></header>
-  <div class="app-content">
-    <section id="sala-home" class="sala ativa"><div class="hero-banner"><p class="eyebrow">Seleção da loja</p><h1>O próximo<br><span>favorito está aqui.</span></h1><p>Descubra produtos selecionados para si.</p><button class="btn-glass" onclick="mudarSala('explorar',document.querySelectorAll('.nav-item')[1])">Explorar coleção →</button></div><h3 class="subheading">Categorias</h3><div class="categorias-scroll"><div class="cat-item"><div class="cat-icon">✦</div><span>Novidades</span></div><div class="cat-item"><div class="cat-icon">◇</div><span>Cuidados</span></div><div class="cat-item"><div class="cat-icon">◈</div><span>Estilo</span></div><div class="cat-item"><div class="cat-icon">☼</div><span>Bem-estar</span></div></div><h3 class="subheading">Produtos</h3><div class="grid-produtos" id="lista-produtos"></div></section>
-    <section id="sala-explorar" class="sala"><h2>Explorar loja</h2><h3 class="subheading">Estúdio de design</h3><div class="design-studio"><div class="design-canvas" onclick="alert('O editor visual será integrado numa fase própria.')">＋ Criar banner ou publicação</div><div class="design-tools"><button class="tool-btn ativo" type="button">T</button><button class="tool-btn" type="button">▧</button><button class="tool-btn" type="button">◉</button></div></div><h3 class="subheading">Gestão de média</h3><div class="media-grid"><div class="media-item"><img src="https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80" alt="Produtos de cuidados"><span class="play-icon">↗</span></div><div class="media-item"><img src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?auto=format&fit=crop&w=600&q=80" alt="Produtos de beleza"></div></div><h3 class="subheading">Localização</h3><div class="map-container"><div class="map-pin">⌖</div></div><h3 class="subheading">Fornecedores e atacado</h3><div class="wholesale-banner"><img class="wholesale-img" src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?auto=format&fit=crop&w=400&q=80" alt="Produtos em lote"><div class="wholesale-info"><h4>Compra em quantidade</h4><p>Contacte fornecedores para abastecer a sua loja.</p><button class="btn-add-quick" type="button" onclick="alert('A ligação a fornecedores será configurada separadamente.')">Contactar fornecedor</button></div></div></section>
-    <section id="sala-social" class="sala"><h2>Comunidade</h2><div class="broadcast-card"><h4>Canal da loja</h4><p>Partilhe novidades e promoções com a sua comunidade.</p><button class="btn-broadcast" type="button" onclick="alert('Adicione o endereço do seu canal para ativar esta ligação.')">Configurar canal</button></div><div class="social-feed"><article class="post-card"><div class="post-header"><div class="post-avatar">F</div><div class="post-info"><h4>Comunidade FLOWEBUY</h4><span>Espaço da loja</span></div></div><div class="post-content"><p>Use este espaço para divulgar novidades, produtos e informações úteis aos seus clientes.</p></div><div class="post-actions"><span class="post-action">♡ Gostar</span><span class="post-action">↗ Partilhar</span></div></article></div></section>
-    <section id="sala-builder" class="sala"><h2>Criador da loja</h2><p class="muted">Preencha os dados da loja e depois organize a sua página.</p><div class="store-form"><label for="loja-nome">Nome da loja *</label><input class="store-input" id="loja-nome" maxlength="120" placeholder="Ex.: Minha Loja" required><label for="loja-descricao">Descrição</label><textarea class="store-input" id="loja-descricao" maxlength="1000" rows="3" placeholder="O que vende a sua loja?"></textarea><label for="loja-icone">Ícone da loja</label><select class="store-input" id="loja-icone"><option value="🏪">🏪 Loja</option><option value="🧴">🧴 Beleza</option><option value="📱">📱 Tecnologia</option><option value="👟">👟 Moda e desporto</option><option value="🥗">🥗 Alimentação</option><option value="✨">✨ Outro</option></select><p id="builder-feedback" class="builder-feedback" role="status" aria-live="polite"></p></div><div class="product-form"><h3>Adicionar produto</h3><label for="produto-loja">Loja *</label><select class="store-input" id="produto-loja" required><option value="">A carregar lojas…</option></select><label for="novo-produto-nome">Nome do produto *</label><input class="store-input" id="novo-produto-nome" maxlength="160" placeholder="Ex.: Camisola clássica" required><label for="novo-produto-preco">Preço (USD) *</label><input class="store-input" id="novo-produto-preco" type="number" min="0" max="1000000000" step="0.01" placeholder="0.00" required><label for="novo-produto-stock">Stock inicial *</label><input class="store-input" id="novo-produto-stock" type="number" min="0" max="1000000" step="1" value="0" required><label for="novo-produto-imagem">URL da imagem (opcional)</label><input class="store-input" id="novo-produto-imagem" type="url" maxlength="2000" placeholder="https://…"><button class="btn-publish" type="button" onclick="adicionarProduto()">Guardar produto</button><p id="product-feedback" class="builder-feedback" role="status" aria-live="polite"></p></div><div class="builder-container"><h3 class="subheading">1. Escolha um tema</h3><div class="template-grid"><button class="template-card ativo" onclick="selecionarTemplate(this)"><span class="template-preview theme-minimal"></span><span class="template-name">Minimalista</span></button><button class="template-card" onclick="selecionarTemplate(this)"><span class="template-preview theme-organic"></span><span class="template-name">Orgânico</span></button></div><h3 class="subheading">2. Estrutura da página</h3><div class="builder-canvas" id="builder-canvas"><div class="builder-block" draggable="true"><span>▧ Banner principal</span><span class="drag-icon">⋮⋮</span></div><div class="builder-block" draggable="true"><span>▦ Grelha de produtos</span><span class="drag-icon">⋮⋮</span></div></div><button class="btn-publish" onclick="publicarLoja()">Publicar loja no mercado ↗</button></div><h3 class="subheading">Editor de conteúdo</h3><div class="blog-editor"><input class="blog-title-input" placeholder="Título do artigo…"><div class="blog-toolbar"><button class="blog-tool" type="button"><b>B</b></button><button class="blog-tool" type="button"><i>I</i></button><button class="blog-tool" type="button">↗</button></div><textarea class="blog-content-area" placeholder="Escreva o seu artigo…"></textarea><div class="blog-footer"><button class="btn-publish-blog" onclick="alert('O fluxo de publicação de artigos ainda precisa de persistência própria.')">Guardar rascunho</button></div></div></section>
-    <section id="sala-perfil" class="sala"><h2>Centro de negócio</h2><div class="competitive-alert"><div class="icon">✦</div><div><h4>Visão geral</h4><p>As métricas abaixo são preenchidas pela API quando existem dados registados. Não representam resultados comerciais garantidos.</p></div></div><div class="dashboard-grid"><div class="kpi-card"><span class="kpi-title">Encomendas</span><span class="kpi-value">—</span><span class="kpi-trend">API</span></div><div class="kpi-card"><span class="kpi-title">Stock baixo</span><span class="kpi-value">—</span><span class="kpi-trend">Sem dados</span></div><div class="kpi-card"><span class="kpi-title">Receita</span><span class="kpi-value">—</span><span class="kpi-trend">Sem dados</span></div><div class="kpi-card"><span class="kpi-title">Carrinhos</span><span class="kpi-value" id="cart-metric">0</span><span class="kpi-trend">Sessão atual</span></div></div><div class="finance-chart-container"><div class="finance-header"><h3>Fluxo de caixa</h3><span class="muted">Sem dados financeiros ligados</span></div><div class="empty-chart">As métricas financeiras aparecerão aqui quando existir uma fonte de dados real.</div></div><h3 class="subheading">Inventário</h3><div class="inventory-list"><div class="inventory-item"><div class="inv-info"><span class="inv-name">Inventário</span><span class="inv-sku">Inventário das suas lojas</span></div><span class="inv-stock">Não configurado</span></div></div></section>
-    <section id="sala-produto"><div class="detalhe-container"><button class="btn-back" onclick="voltarParaHome()">← Voltar</button><img src="" id="produto-img" class="detalhe-img" alt="Produto"><div class="detalhe-top"><h2 id="produto-nome">Produto</h2><span>♡</span></div><div class="detalhe-preco" id="produto-preco">$0.00</div><div class="opcoes-grupo"><h3>Opções</h3><div class="opcoes-grid"><button class="opcao-btn ativo" onclick="selecionarOpcao(this)">Padrão</button><button class="opcao-btn" onclick="selecionarOpcao(this)">Alternativa</button></div></div><p class="muted">Confirme os detalhes e condições com o vendedor antes de comprar.</p><button class="btn-action-fixed" onclick="adicionarCarrinho()">Adicionar ao carrinho</button></div></section>
-  <section id="sala-carrinho" class="sala cart-room">
-    <div class="cart-room-heading"><div><p class="eyebrow">A sua seleção</p><h2>O seu carrinho</h2></div><button type="button" class="btn-back" onclick="mudarSala('home',document.querySelector('.nav-item'))">← Continuar a comprar</button></div>
-    <p id="carrinho-feedback" class="builder-feedback" role="status" aria-live="polite"></p>
-    <div id="carrinho-lista" class="cart-items-list"><p class="muted">A carregar o carrinho…</p></div>
-    <div class="cart-summary"><div class="cart-total-row"><span>Total estimado</span><strong id="carrinho-total-valor">$0.00</strong></div><p class="muted">O total definitivo é recalculado no servidor ao criar a encomenda. O stock é reservado ao criar a encomenda. O pagamento só é confirmado pelo Stripe após o webhook.</p><label for="morada-entrega" class="auth-label">Morada de entrega</label><textarea id="morada-entrega" class="auth-input" maxlength="500" rows="3" placeholder="Rua, bairro, cidade e outros detalhes" required></textarea><button type="button" class="btn-publish cart-checkout-btn" onclick="finalizarCompra()">Pagar com Stripe</button></div>
-    <div id="checkout-result" class="checkout-result" role="status" aria-live="polite"></div>
-  </section>
-  </div>
-  <button class="support-fab" id="support-btn" onclick="toggleChat()" aria-label="Abrir suporte">✉</button><aside class="chat-panel" id="chat-panel"><div class="chat-header"><h4>Suporte FLOWEBUY</h4><p>Assistente básico</p></div><div class="chat-body" id="chat-body"><div class="msg agent">Olá! Como podemos ajudar?</div></div><div class="chat-input-area"><input id="chat-input" placeholder="Escreva uma mensagem…" onkeypress="handleChatEnter(event)"><button onclick="enviarMensagem()" aria-label="Enviar">➤</button></div></aside>
-  <nav class="bottom-nav" aria-label="Navegação da loja"><button class="nav-item ativo" onclick="mudarSala('home',this)"><span class="icon">⌂</span><span>Início</span></button><button class="nav-item" onclick="mudarSala('explorar',this)"><span class="icon">⌕</span><span>Explorar</span></button><button class="nav-item" onclick="mudarSala('social',this)"><span class="icon">◎</span><span>Social</span></button><button class="nav-item" onclick="mudarSala('builder',this)"><span class="icon">✧</span><span>Criar</span></button><button class="nav-item" onclick="mudarSala('perfil',this);carregarMetricas()"><span class="icon">◉</span><span>Negócio</span></button></nav>
-</section>
-<!-- Supabase: chave pública publishable; RLS protege os dados -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  window.supabaseClient = window.supabase.createClient(
-    'https://ugcovxdztsjuyhjjrfce.supabase.co',
-    'sb_publishable_yp7ad33iJELOdqmZp5Sp6Q_DWj53vym'
-  );
-</script>
 
-<!-- MODAL DE AUTENTICAÇÃO FLOWEBUY -->
-<div id="auth-modal" class="auth-modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="auth-title">
-  <div class="auth-modal-content">
-    <button class="auth-close" type="button" onclick="fecharAuth()" aria-label="Fechar janela">✕</button>
-    <div id="auth-login-view">
-      <h2 class="auth-title" id="auth-title">Entrar na FLOWEBUY</h2>
-      <p class="auth-subtitle">Bem-vindo de volta ao seu ecossistema.</p>
-      <form id="login-form">
-        <label class="auth-label" for="login-email">E-mail</label>
-        <input type="email" id="login-email" class="auth-input" placeholder="O seu e-mail" autocomplete="email" required>
-        <label class="auth-label" for="login-password">Palavra-passe</label>
-        <input type="password" id="login-password" class="auth-input" placeholder="A sua palavra-passe" autocomplete="current-password" required>
-        <p class="auth-message" id="login-message" role="status" aria-live="polite"></p>
-        <button type="submit" class="auth-btn-primary" id="login-btn">Entrar</button>
-      </form>
-      <p class="auth-switch">Ainda não tem conta? <a href="#registar" onclick="switchAuthView('register');return false">Criar conta</a></p>
-    </div>
-    <div id="auth-register-view" style="display:none">
-      <h2 class="auth-title">Criar conta</h2>
-      <p class="auth-subtitle">Comece a vender no ecossistema FLOWEBUY.</p>
-      <form id="register-form">
-        <label class="auth-label" for="reg-name">Nome completo</label>
-        <input type="text" id="reg-name" class="auth-input" placeholder="O seu nome completo" autocomplete="name" maxlength="120" required>
-        <label class="auth-label" for="reg-email">E-mail</label>
-        <input type="email" id="reg-email" class="auth-input" placeholder="O seu e-mail" autocomplete="email" required>
-        <label class="auth-label" for="reg-password">Palavra-passe</label>
-        <input type="password" id="reg-password" class="auth-input" placeholder="Mínimo de 8 caracteres" autocomplete="new-password" minlength="8" required>
-        <p class="auth-message" id="register-message" role="status" aria-live="polite"></p>
-        <button type="submit" class="auth-btn-primary" id="reg-btn">Criar conta</button>
-      </form>
-      <p class="auth-switch">Já tem conta? <a href="#entrar" onclick="switchAuthView('login');return false">Entrar</a></p>
-    </div>
-  </div>
-</div>
+    <!-- =========================================
+         FASE 1: O MERCADO (DASHBOARD PÚBLICO)
+         ========================================= -->
+    <main id="mercado-view">
+        
+        <!-- Navbar do Mercado -->
+        <nav class="top-nav-bar">
+            <a class="brand" href="#" onclick="location.reload()">
+                <span class="brand-mark">F</span>
+                <span>FLOWE<span class="brand-accent">BUY</span></span>
+            </a>
+            <label class="search-bar">
+                <span aria-hidden="true">⌕</span>
+                <input id="pesquisa" type="search" placeholder="Pesquisar lojas, produtos ou serviços…" aria-label="Pesquisar">
+            </label>
+            <div class="location-badge">⌖ <span>Descubra lojas</span></div>
+        </nav>
 
-<script src="js/app.js"></script>
+        <!-- Hero Header Animado -->
+        <header class="animated-header">
+            <div class="header-content">
+                <div class="header-text">
+                    <p class="eyebrow">O seu comércio, conectado</p>
+                    <h1>Descubra. Crie.<br><span>Venda sem fronteiras.</span></h1>
+                    <p>Explore lojas independentes e construa a sua presença comercial num único ecossistema digital.</p>
+                    <div class="header-cta">
+                        <button class="btn-header-primary" onclick="irParaCriar()">Criar a minha loja <span>↗</span></button>
+                        <button class="btn-header-secondary" onclick="document.getElementById('grid-lojas').scrollIntoView({behavior:'smooth'})">Explorar o mercado</button>
+                    </div>
+                </div>
+                <div class="header-art" aria-hidden="true">
+                    <div class="orbit orbit-one"></div>
+                    <div class="orbit orbit-two"></div>
+                    <div class="hero-cube">F<span>W</span></div>
+                    <div class="float-chip chip-a">✦ Comércio digital</div>
+                    <div class="float-chip chip-b">↗ Novas oportunidades</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Grelha de Lojas -->
+        <section class="market-section">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Explore o ecossistema</p>
+                    <h2 class="section-title">Lojas em destaque</h2>
+                </div>
+                <span class="section-note">Descubra algo novo</span>
+            </div>
+            <div class="grid-lojas" id="grid-lojas" aria-live="polite">
+                <p class="loading-state">A carregar lojas…</p>
+            </div>
+        </section>
+        
+        <footer class="site-footer">
+            <a class="brand" href="#"><span class="brand-mark">F</span><span>FLOWE<span class="brand-accent">BUY</span></span></a>
+            <span>O comércio encontra o seu próximo destino.</span>
+        </footer>
+    </main>
+
+    <!-- =========================================
+         FASE 2 a 8: A LOJA (APP SPA)
+         ========================================= -->
+    <section id="loja-view" aria-label="Área da Loja">
+        
+        <!-- Header da Loja -->
+        <header class="app-header">
+            <button class="btn-back" onclick="fecharLoja()">← Mercado</button>
+            <h2 id="titulo-loja">A minha loja</h2>
+            <button class="cart-icon" onclick="abrirCarrinho()" aria-label="Ver carrinho">
+                🛒 <span class="cart-badge" id="cart-badge">0</span>
+            </button>
+        </header>
+
+        <!-- Conteúdo das Salas -->
+        <div class="app-content">
+            
+            <!-- SALA: HOME (Fase 2) -->
+            <section id="sala-home" class="sala ativa">
+                <div class="hero-banner">
+                    <p class="eyebrow">Seleção da loja</p>
+                    <h1>O próximo<br><span>favorito está aqui.</span></h1>
+                    <p>Descubra produtos selecionados para si.</p>
+                    <button class="btn-glass" onclick="mudarSala('explorar', document.querySelectorAll('.nav-item')[1])">Explorar coleção →</button>
+                </div>
+                <h3 class="subheading">Categorias</h3>
+                <div class="categorias-scroll">
+                    <div class="cat-item"><div class="cat-icon">✦</div><span>Novidades</span></div>
+                    <div class="cat-item"><div class="cat-icon">◇</div><span>Cuidados</span></div>
+                    <div class="cat-item"><div class="cat-icon">◈</div><span>Estilo</span></div>
+                    <div class="cat-item"><div class="cat-icon">☼</div><span>Bem-estar</span></div>
+                </div>
+                <h3 class="subheading">Produtos</h3>
+                <div class="grid-produtos" id="lista-produtos"></div>
+            </section>
+
+            <!-- SALA: EXPLORAR (GPS + Media + Design - Fases 3 e 5) -->
+            <section id="sala-explorar" class="sala">
+                <h2>Explorar loja</h2>
+                
+                <h3 class="subheading">Estúdio de design</h3>
+                <div class="design-studio">
+                    <div class="design-canvas" onclick="alert('O editor visual será integrado numa fase própria.')">＋ Criar banner ou publicação</div>
+                    <div class="design-tools">
+                        <button class="tool-btn ativo" type="button">T</button>
+                        <button class="tool-btn" type="button">▧</button>
+                        <button class="tool-btn" type="button">◉</button>
+                    </div>
+                </div>
+
+                <h3 class="subheading">Gestão de média</h3>
+                <div class="media-grid">
+                    <div class="media-item">
+                        <img src="https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80" alt="Produtos de cuidados">
+                        <span class="play-icon">↗</span>
+                    </div>
+                    <div class="media-item">
+                        <img src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?auto=format&fit=crop&w=600&q=80" alt="Produtos de beleza">
+                    </div>
+                </div>
+
+                <h3 class="subheading">Localização</h3>
+                <div class="map-container"><div class="map-pin">⌖</div></div>
+
+                <h3 class="subheading">Fornecedores e atacado</h3>
+                <div class="wholesale-banner">
+                    <img class="wholesale-img" src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?auto=format&fit=crop&w=400&q=80" alt="Produtos em lote">
+                    <div class="wholesale-info">
+                        <h4>Compra em quantidade</h4>
+                        <p>Contacte fornecedores para abastecer a sua loja.</p>
+                        <button class="btn-add-quick" type="button" onclick="alert('A ligação a fornecedores será configurada separadamente.')">Contactar fornecedor</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SALA: SOCIAL (Fase 3) -->
+            <section id="sala-social" class="sala">
+                <h2>Comunidade</h2>
+                <div class="broadcast-card">
+                    <h4>Canal da loja</h4>
+                    <p>Partilhe novidades e promoções com a sua comunidade.</p>
+                    <button class="btn-broadcast" type="button" onclick="alert('Adicione o endereço do seu canal para ativar esta ligação.')">Configurar canal</button>
+                </div>
+                <div class="social-feed">
+                    <article class="post-card">
+                        <div class="post-header">
+                            <div class="post-avatar">F</div>
+                            <div class="post-info">
+                                <h4>Comunidade FLOWEBUY</h4>
+                                <span>Espaço da loja</span>
+                            </div>
+                        </div>
+                        <div class="post-content">
+                            <p>Use este espaço para divulgar novidades, produtos e informações úteis aos seus clientes.</p>
+                        </div>
+                        <div class="post-actions">
+                            <span class="post-action">♡ Gostar</span>
+                            <span class="post-action">↗ Partilhar</span>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <!-- SALA: BUILDER (Fase 6) -->
+            <section id="sala-builder" class="sala">
+                <h2>Criador da loja</h2>
+                <p class="muted">Escolha um tema e organize os blocos da sua página.</p>
+
+                <div class="builder-container">
+                    <h3 class="subheading">1. Escolha um tema</h3>
+                    <div class="template-grid">
+                        <button class="template-card ativo" onclick="selecionarTemplate(this)">
+                            <span class="template-preview theme-minimal"></span>
+                            <span class="template-name">Minimalista</span>
+                        </button>
+                        <button class="template-card" onclick="selecionarTemplate(this)">
+                            <span class="template-preview theme-organic"></span>
+                            <span class="template-name">Orgânico</span>
+                        </button>
+                    </div>
+
+                    <h3 class="subheading">2. Estrutura da página</h3>
+                    <div class="builder-canvas" id="builder-canvas">
+                        <div class="builder-block" draggable="true"><span>▧ Banner principal</span><span class="drag-icon">⋮⋮</span></div>
+                        <div class="builder-block" draggable="true"><span>▦ Grelha de produtos</span><span class="drag-icon">⋮⋮</span></div>
+                    </div>
+                    <button class="btn-publish" onclick="publicarLoja()">Publicar loja no mercado ↗</button>
+                </div>
+            </section>
+
+            <!-- SALA: PERFIL / BUSINESS CENTER (Fase 4) -->
+            <section id="sala-perfil" class="sala">
+                <h2>Centro de negócio</h2>
+                <div class="competitive-alert">
+                    <div class="icon">✦</div>
+                    <div>
+                        <h4>Visão geral</h4>
+                        <p>As métricas abaixo são preenchidas pela API quando existem dados registados. Não representam resultados comerciais garantidos.</p>
+                    </div>
+                </div>
+                
+                <div class="dashboard-grid">
+                    <div class="kpi-card"><span class="kpi-title">Encomendas</span><span class="kpi-value">—</span><span class="kpi-trend">API</span></div>
+                    <div class="kpi-card"><span class="kpi-title">Stock Baixo</span><span class="kpi-value">—</span><span class="kpi-trend">Alerta</span></div>
+                    <div class="kpi-card"><span class="kpi-title">Receita</span><span class="kpi-value">—</span><span class="kpi-trend">Sem dados</span></div>
+                    <div class="kpi-card"><span class="kpi-title">Carrinhos</span><span class="kpi-value" id="cart-metric">0</span><span class="kpi-trend">Sessão atual</span></div>
+                </div>
+
+                <div class="finance-chart-container">
+                    <div class="finance-header">
+                        <h3>Fluxo de caixa</h3>
+                        <span class="muted">Sem dados financeiros ligados</span>
+                    </div>
+                    <div class="empty-chart">As métricas financeiras aparecerão aqui quando existir uma fonte de dados real.</div>
+                </div>
+
+                <h3 class="subheading">Inventário</h3>
+                <div class="inventory-list">
+                    <div class="inventory-item">
+                        <div class="inv-info"><span class="inv-name">Inventário</span><span class="inv-sku">Ligação à gestão de stock pendente</span></div>
+                        <span class="inv-stock">Não configurado</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SALA: CARRINHO (Fase Final - PayPal) -->
+            <section id="sala-carrinho" class="sala">
+                <h2>O Seu Carrinho</h2>
+                <p id="carrinho-feedback" style="margin-bottom: 15px;"></p>
+                
+                <div id="carrinho-lista" style="margin-top: 20px;">
+                    <!-- Itens carregados via JS -->
+                </div>
+                
+                <div class="carrinho-total" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border);">
+                    <h3 style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                        <span>Total:</span>
+                        <span id="carrinho-total-valor" style="color: var(--primary);">$0.00</span>
+                    </h3>
+                    <input type="text" id="morada-entrega" class="auth-input" placeholder="Morada de Entrega (mín. 5 caracteres)" style="margin-bottom: 15px;">
+                    <button class="cart-checkout-btn btn-header-primary" style="width: 100%; padding: 15px;" onclick="finalizarCompra()">Pagar com PayPal</button>
+                </div>
+            </section>
+
+            <!-- SALA: DETALHE DO PRODUTO (Fase 2) -->
+            <section id="sala-produto">
+                <div class="detalhe-container">
+                    <button class="btn-back" onclick="voltarParaHome()">← Voltar</button>
+                    <img src="" id="produto-img" class="detalhe-img" alt="Produto">
+                    <div class="detalhe-top">
+                        <h2 id="produto-nome">Produto</h2>
+                        <span>♡</span>
+                    </div>
+                    <div class="detalhe-preco" id="produto-preco">$0.00</div>
+                    
+                    <div class="opcoes-grupo">
+                        <h3>Opções</h3>
+                        <div class="opcoes-grid">
+                            <button class="opcao-btn ativo" onclick="selecionarOpcao(this)">Padrão</button>
+                            <button class="opcao-btn" onclick="selecionarOpcao(this)">Alternativa</button>
+                        </div>
+                    </div>
+                    <p class="muted">Confirme os detalhes e condições com o vendedor antes de comprar.</p>
+                    <button class="btn-action-fixed" onclick="adicionarCarrinho()">Adicionar ao carrinho</button>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- WIDGET DE SUPORTE (Fase 5) -->
+        <button class="support-fab" id="support-btn" onclick="toggleChat()" aria-label="Abrir suporte">✉</button>
+        <aside class="chat-panel" id="chat-panel">
+            <div class="chat-header">
+                <h4>Suporte FLOWEBUY</h4>
+                <p>Assistente básico</p>
+            </div>
+            <div class="chat-body" id="chat-body">
+                <div class="msg agent">Olá! Como podemos ajudar?</div>
+            </div>
+            <div class="chat-input-area">
+                <input id="chat-input" placeholder="Escreva uma mensagem…" onkeypress="handleChatEnter(event)">
+                <button onclick="enviarMensagem()" aria-label="Enviar">➤</button>
+            </div>
+        </aside>
+
+        <!-- MENU INFERIOR (BOTTOM NAV) -->
+        <nav class="bottom-nav" aria-label="Navegação da loja">
+            <button class="nav-item ativo" onclick="mudarSala('home',this)"><span class="icon">⌂</span><span>Início</span></button>
+            <button class="nav-item" onclick="mudarSala('explorar',this)"><span class="icon">⌕</span><span>Explorar</span></button>
+            <button class="nav-item" onclick="mudarSala('social',this)"><span class="icon">◎</span><span>Social</span></button>
+            <button class="nav-item" onclick="mudarSala('builder',this)"><span class="icon">✧</span><span>Criar</span></button>
+            <button class="nav-item" onclick="mudarSala('perfil',this); carregarMetricas()"><span class="icon">◉</span><span>Negócio</span></button>
+        </nav>
+    </section>
+
+    <!-- =========================================
+         MODAL DE AUTENTICAÇÃO (Fase 2)
+         ========================================= -->
+    <div id="auth-modal" class="auth-modal-overlay" style="display: none;">
+        <div class="auth-modal-content">
+            <button class="auth-close" onclick="fecharAuth()">✕</button>
+            
+            <!-- Ecrã de Login -->
+            <div id="auth-login-view">
+                <h2 class="auth-title">Entrar na FLOWEBUY</h2>
+                <p class="auth-subtitle">Bem-vindo de volta ao seu ecossistema.</p>
+                <p id="login-message" style="color: red; font-size: 0.85rem; margin-bottom: 10px;"></p>
+                <form id="login-form">
+                    <input type="email" id="login-email" class="auth-input" placeholder="O seu e-mail" required>
+                    <input type="password" id="login-password" class="auth-input" placeholder="A sua palavra-passe" required>
+                    <button type="submit" class="auth-btn-primary" id="login-btn">Entrar</button>
+                </form>
+                <p class="auth-switch">Ainda não tem conta? <a href="#" onclick="switchAuthView('register')">Criar conta</a></p>
+            </div>
+
+            <!-- Ecrã de Registo -->
+            <div id="auth-register-view" style="display: none;">
+                <h2 class="auth-title">Criar Conta</h2>
+                <p class="auth-subtitle">Comece a vender no maior ecossistema digital.</p>
+                <p id="register-message" style="color: red; font-size: 0.85rem; margin-bottom: 10px;"></p>
+                <form id="register-form">
+                    <input type="text" id="reg-name" class="auth-input" placeholder="O seu nome completo" required>
+                    <input type="email" id="reg-email" class="auth-input" placeholder="O seu e-mail" required>
+                    <input type="password" id="reg-password" class="auth-input" placeholder="Crie uma palavra-passe (min. 8 caracteres)" required>
+                    <button type="submit" class="auth-btn-primary" id="reg-btn">Criar Conta</button>
+                </form>
+                <p class="auth-switch">Já tem conta? <a href="#" onclick="switchAuthView('login')">Entrar</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================
+         SCRIPTS
+         ========================================= -->
+    <script>
+        // Funções de navegação simples (não dependem do Supabase para abrir a UI)
+        function irParaCriar() {
+            document.getElementById('loja-view').classList.add('aberta');
+            const navItems = document.querySelectorAll('.nav-item');
+            if(navItems.length > 3) {
+                navItems.forEach(i => i.classList.remove('ativo'));
+                navItems[3].classList.add('ativo');
+            }
+            document.querySelectorAll('.app-content > .sala').forEach(s => s.classList.remove('ativa'));
+            const salaBuilder = document.getElementById('sala-builder');
+            if(salaBuilder) salaBuilder.classList.add('ativa');
+        }
+
+        function fecharLoja() {
+            document.getElementById('loja-view').classList.remove('aberta');
+        }
+
+        // Lógica do Modal de Auth (visibilidade)
+        function abrirAuth(view) {
+            const modal = document.getElementById('auth-modal');
+            if (!modal) return;
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('show'), 10);
+            switchAuthView(view || 'login');
+        }
+
+        function fecharAuth() {
+            const modal = document.getElementById('auth-modal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => modal.style.display = 'none', 300);
+        }
+
+        function switchAuthView(view) {
+            const login = document.getElementById('auth-login-view');
+            const register = document.getElementById('auth-register-view');
+            if (!login || !register) return;
+            login.style.display = view === 'register' ? 'none' : 'block';
+            register.style.display = view === 'register' ? 'block' : 'none';
+        }
+    </script>
+    
+    <!-- O SEU APP.JS (Onde está toda a lógica real) -->
+    <script src="js/app.js"></script>
 </body>
 </html>
