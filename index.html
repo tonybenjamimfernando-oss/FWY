@@ -54,6 +54,21 @@ input,textarea,select{background:rgba(5,22,39,.72);color:#f2f8ff;border-color:rg
 @media(max-width:760px){.top-nav-bar{padding:14px 16px;gap:10px;flex-wrap:wrap}.brand{font-size:1.02rem}.search-bar{order:3;flex-basis:100%;max-width:none}.location-badge{margin-left:auto;padding:9px 10px;font-size:.75rem}.animated-header{margin:8px 12px 0;padding:30px 22px 22px;border-radius:24px}.header-content{grid-template-columns:1fr;min-height:unset;gap:16px}.header-text h1{font-size:clamp(2rem,8vw,3.4rem);line-height:1.03}.animated-header:after{width:260px;height:260px;right:-125px;top:-90px}.loja-card,.produto-card{min-width:0}.bottom-nav{padding-bottom:env(safe-area-inset-bottom)}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
 
+
+/* Contrast correction: readable text on the light content surfaces */
+:root{--ink:#10243e;--muted:#526a82}
+body{color:#10243e}
+#mercado-view,#loja-view{color:#10243e}
+#loja-view h1,#loja-view h2,#loja-view h3,#loja-view h4,
+#mercado-view h1,#mercado-view h2,#mercado-view h3,#mercado-view h4,
+.section-title,.section-subtitle,.subheading,.builder-section h2,.builder-section h3{color:#10243e}
+#loja-view p,#mercado-view p,.muted{color:#526a82}
+.loja-card,.produto-card,.template-card,.builder-block,.kpi-card,.metric-card,.dashboard-card{color:#eaf4ff}
+.loja-card h2,.loja-card h3,.loja-card h4,.produto-card h2,.produto-card h3,.produto-card h4,
+.template-card h2,.template-card h3,.template-card h4,.builder-block h2,.builder-block h3,.builder-block h4{color:#f1f8ff}
+.builder-block p,.loja-card .muted,.produto-card .muted{color:#b9cfe2}
+#builder-canvas{color:#10243e}
+
 </style>
 </head>
 <body>
