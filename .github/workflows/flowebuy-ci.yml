@@ -26,7 +26,7 @@ jobs:
         run: |
           node --check server/server.js
           node --check server/Database.js
-          node --check public/js/app.js
+          node --check js/app.js
       - name: Start server and verify API
         shell: bash
         run: |
